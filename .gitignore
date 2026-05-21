@@ -1,6 +1,8 @@
 # 忽略数据集目录（大数据文件）
-model/data/cat/**
-model/data/dog/**
+model/data/**
+model/data/**
+# 但必须保留 .gitkeep，让文件夹显示在 GitHub
+!model/data/.gitkeep
 # 忽略训练好的模型权重（较大）
 *.pth
 *.pt
