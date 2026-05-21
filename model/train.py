@@ -161,7 +161,7 @@ def validate(model, loader, criterion, device):
     return running_loss / total, 100. * correct / total, all_preds, all_labels
 
 def main():
-    DOG_DIR = os.path.join(os.path.dirname(__file__), 'data', 'pet')
+    DOG_DIR = os.path.join(os.path.dirname(__file__), 'data', 'dog')
     CAT_DIR = os.path.join(os.path.dirname(__file__), 'data', 'cat')
     MODEL_SAVE_PATH = os.path.join(os.path.dirname(__file__), 'best_pet_model.pth')
 
