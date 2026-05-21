@@ -1,6 +1,6 @@
 # 忽略数据集目录（大数据文件）
-model/data/cat/**/*
-model/data/dog/**/*
+model/data/cat/**
+model/data/dog/**
 # 忽略训练好的模型权重（较大）
 *.pth
 *.pt
