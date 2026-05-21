@@ -1,5 +1,5 @@
 # 忽略数据集目录（大数据文件）
-model/data/
+#model/data/
 
 # 忽略训练好的模型权重（较大）
 *.pth
@@ -8,7 +8,7 @@ model/data/
 # 忽略训练历史图片
 *.png
 *.jpg
-*.jpeg
+
 
 # 忽略 Python 编译文件
 __pycache__/

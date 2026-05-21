@@ -1,0 +1,12 @@
+0 abixiniya 阿比西尼亚猫
+1 aiji 埃及猫
+2 bao 豹猫
+3 boman 布偶猫
+4 bosi 波斯猫
+5 buou 缅甸猫
+6 eluosilan 俄罗斯蓝猫
+7 mengmai 孟买猫
+8 mianyin 缅因猫
+9 wumao 无毛猫
+10 xianluo 暹罗猫
+11 yingduan 英国短毛猫
