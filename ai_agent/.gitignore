@@ -1,0 +1,51 @@
+# Python compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+venv/
+env/
+.env/
+.venv/
+
+# Environment variables (contains API keys and secrets)
+.env
+.env.local
+.env.*.local
+
+# Log files
+*.log
+logs/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS files
+.DS_Store
+
+# Testing
+.pytest_cache/
+.tox/
+coverage.xml
+.coverage
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+
+# Database files
+*.db
+*.sqlite
+
+# SSL certificates
+*.pem
+*.key
+*.crt
