@@ -1,0 +1,39 @@
+# 忽略数据集目录（大数据文件）
+model/data/
+
+# 忽略训练好的模型权重（较大）
+*.pth
+*.pt
+
+# 忽略训练历史图片
+*.png
+*.jpg
+*.jpeg
+
+# 忽略 Python 编译文件
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 忽略 IDE 配置
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 忽略操作系统文件
+.DS_Store
+Thumbs.db
+
+# 忽略日志文件
+*.log
+
+# 忽略环境配置
+.env
+environment.yml
+
+# 忽略临时文件
+*.tmp
+*.temp
