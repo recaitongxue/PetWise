@@ -2,48 +2,61 @@
 FastAPI Application for AI Agent Service
 Provides RESTful API endpoints for frontend and backend integration
 """
-from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 import uvicorn
 import io
+import time
+import uuid
 
 from config import Config
 from ai_service import AIAgentService
 from utils import setup_logging, format_timestamp
 from exceptions import AIAgentException
+from cache import get_cache, get_model_cache, init_cache
+from structured_logger import setup_structured_logging, get_logger, APILogger, set_request_context, clear_request_context
+from error_handlers import setup_error_handlers
 
-logger = setup_logging(Config.LOG_LEVEL)
+setup_structured_logging()
+logger = get_logger("api")
+api_logger = APILogger()
 
 app = FastAPI(
     title="PetWise AI Agent API",
     description="AI-powered pet recognition and service system API",
-    version="1.0.0"
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=Config.get_cors_origins(),
+    allow_credentials=Config.CORS_ALLOW_CREDENTIALS,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
+setup_error_handlers(app)
+
 ai_service = None
+cache = None
+model_cache = None
 
 class ChatRequest(BaseModel):
     user_message: str = Field(..., description="User's message or question")
     use_knowledge_base: bool = Field(True, description="Whether to use knowledge base")
-    custom_prompt: Optional[str] = Field(None, description="Custom prompt name")
+    custom_prompt: Optional[str] = Field(None, description="Custom prompt name (use null or omit for default)")
     temperature: float = Field(0.7, ge=0.0, le=2.0, description="AI response temperature")
-    model: Optional[str] = Field(None, description="AI model name to use")
+    model: Optional[str] = Field(None, description="AI model name to use (e.g., deepseek-ai/DeepSeek-V3)")
 
 class ChatResponse(BaseModel):
     success: bool
     content: Optional[str] = None
-    usage: Optional[Dict[str, int]] = None
+    usage: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
     timestamp: str
 
@@ -82,11 +95,52 @@ class PromptCreateRequest(BaseModel):
     content: str = Field(..., description="Prompt content")
     description: Optional[str] = Field("", description="Prompt description")
 
+@app.middleware("http")
+async def logging_middleware(request: Request, call_next):
+    """Middleware for logging and request tracking"""
+    request_id = str(uuid.uuid4())
+    request.state.request_id = request_id
+    
+    set_request_context(request_id)
+    
+    start_time = time.time()
+    
+    try:
+        response = await call_next(request)
+        
+        duration_ms = (time.time() - start_time) * 1000
+        
+        api_logger.log_response(
+            method=request.method,
+            path=request.url.path,
+            status_code=response.status_code,
+            duration_ms=duration_ms
+        )
+        
+        response.headers["X-Request-ID"] = request_id
+        return response
+        
+    except Exception as e:
+        duration_ms = (time.time() - start_time) * 1000
+        api_logger.log_error(
+            method=request.method,
+            path=request.url.path,
+            error=e
+        )
+        raise
+    finally:
+        clear_request_context()
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize AI service on startup"""
-    global ai_service
+    global ai_service, cache, model_cache
+    
     try:
+        init_cache()
+        cache = get_cache()
+        model_cache = get_model_cache()
+        
         ai_service = AIAgentService()
         logger.info("AI Agent API service started successfully")
     except Exception as e:
@@ -96,19 +150,19 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown"""
-    global ai_service
+    global ai_service, cache
+    
     if ai_service:
-        ai_service.close()
-        logger.info("AI Agent API service shutdown completed")
+        logger.info("Shutting down AI Agent API service")
 
 @app.get("/", tags=["General"])
 async def root():
     """Root endpoint"""
     return {
-        "service": "PetWise AI Agent API",
+        "message": "PetWise AI Agent API",
         "version": "1.0.0",
-        "status": "running",
-        "timestamp": format_timestamp()
+        "docs": "/docs",
+        "health": "/health"
     }
 
 @app.get("/health", tags=["General"])
@@ -118,96 +172,93 @@ async def health_check():
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     health_status = ai_service.health_check()
-    if health_status["status"] != "healthy":
-        raise HTTPException(status_code=503, detail=health_status)
     
-    return health_status
+    cache_stats = cache.get_stats() if cache else {}
+    
+    return {
+        "status": "healthy",
+        "service": health_status,
+        "cache": cache_stats,
+        "timestamp": format_timestamp()
+    }
 
 @app.get("/info", tags=["General"])
-async def service_info():
-    """Get service information and capabilities"""
-    if not ai_service:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-    
-    return ai_service.get_service_info()
+async def get_info():
+    """Get API information"""
+    return {
+        "name": "PetWise AI Agent API",
+        "version": "1.0.0",
+        "description": "AI-powered pet recognition and service system",
+        "endpoints": {
+            "chat": "/v1/chat",
+            "stream": "/v1/stream",
+            "models": "/v1/models",
+            "knowledge_base": "/v1/knowledge/*",
+            "prompts": "/v1/prompts/*"
+        },
+        "features": [
+            "Pet recognition",
+            "Health consultation",
+            "Knowledge base",
+            "Multi-model support",
+            "Streaming responses"
+        ],
+        "timestamp": format_timestamp()
+    }
 
-@app.get("/models", tags=["Models"])
-async def get_available_models():
+@app.get("/v1/models", tags=["Models"])
+async def get_models():
     """Get list of available AI models"""
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        # 硅基流动支持的模型列表（示例）
-        models = [
-            {
-                "name": "deepseek-ai/DeepSeek-V3",
-                "description": "DeepSeek-V3大语言模型，适用于通用对话任务",
-                "context_window": "128K",
-                "recommended": True
-            },
-            {
-                "name": "Qwen/Qwen2-7B-Instruct",
-                "description": "Qwen2-7B指令微调模型，性能优秀",
-                "context_window": "32K",
-                "recommended": False
-            },
-            {
-                "name": "Qwen/Qwen2-14B-Instruct",
-                "description": "Qwen2-14B指令微调模型，更强大的推理能力",
-                "context_window": "32K",
-                "recommended": False
-            },
-            {
-                "name": "Llama-3-8B-Instruct",
-                "description": "Meta Llama 3 8B指令模型",
-                "context_window": "8K",
-                "recommended": False
-            },
-            {
-                "name": "Llama-3-70B-Instruct",
-                "description": "Meta Llama 3 70B指令模型，最强性能",
-                "context_window": "8K",
-                "recommended": False
-            }
-        ]
+        cached_models = model_cache.get_models()
         
-        return {
-            "success": True,
-            "models": models,
-            "default_model": ai_service.api_client.model,
-            "count": len(models),
-            "timestamp": format_timestamp()
-        }
+        if cached_models:
+            logger.info("Returning cached models list")
+            return cached_models
+        
+        logger.info("Fetching models from API")
+        models_data = ai_service.api_client.get_available_models()
+        
+        model_cache.set_models(models_data)
+        
+        return models_data
+        
     except Exception as e:
-        logger.error(f"Get models error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Failed to get models: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get models: {str(e)}")
 
-@app.post("/chat", response_model=ChatResponse, tags=["Chat"])
-async def chat(request: ChatRequest):
+@app.post("/v1/chat", response_model=ChatResponse, tags=["Chat"])
+async def chat(request: ChatRequest, http_request: Request):
     """
     Main chat endpoint for pet-related queries
     
     - **user_message**: User's question or message
     - **use_knowledge_base**: Whether to search knowledge base
-    - **custom_prompt**: Optional custom prompt name
+    - **custom_prompt**: Optional custom prompt name (use null or omit for default)
     - **temperature**: AI creativity level (0-2)
-    - **model**: Optional AI model name to use
+    - **model**: Optional AI model name (e.g., "deepseek-ai/DeepSeek-V3")
     """
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    request_id = getattr(http_request.state, "request_id", "")
     
     try:
         response = ai_service.chat(
             user_message=request.user_message,
             use_knowledge_base=request.use_knowledge_base,
-            custom_prompt=request.custom_prompt,
+            custom_prompt=request.custom_prompt if request.custom_prompt and request.custom_prompt != "string" else None,
             temperature=request.temperature,
-            model=request.model
+            model=request.model if request.model and request.model != "string" else None
         )
         
         if not response.get("success"):
-            raise HTTPException(status_code=500, detail=response.get("error"))
+            error_msg = response.get("error", "Unknown error")
+            logger.error(f"Chat request failed: {error_msg}")
+            raise HTTPException(status_code=500, detail=error_msg)
         
         return ChatResponse(
             success=True,
@@ -216,290 +267,279 @@ async def chat(request: ChatRequest):
             timestamp=response.get("timestamp")
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Chat endpoint error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Chat endpoint error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@app.post("/stream", tags=["Chat"])
+@app.post("/v1/stream", tags=["Chat"])
 async def stream_chat(request: ChatRequest):
-    """
-    Streaming chat endpoint for real-time responses
-    
-    Returns Server-Sent Events (SSE) stream
-    """
-    if not ai_service:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-    
-    async def generate():
-        try:
-            for chunk in ai_service.stream_chat(
-                user_message=request.user_message,
-                use_knowledge_base=request.use_knowledge_base,
-                custom_prompt=request.custom_prompt,
-                temperature=request.temperature,
-                model=request.model
-            ):
-                yield f"data: {chunk}\n\n"
-        except Exception as e:
-            logger.error(f"Stream chat error: {e}")
-            yield f"data: Error: {str(e)}\n\n"
-    
-    return StreamingResponse(generate(), media_type="text/event-stream")
-
-@app.post("/analyze-image", tags=["Image Analysis"])
-async def analyze_pet_image(request: ImageAnalysisRequest):
-    """
-    Analyze pet image
-    
-    - **image_data**: Base64 encoded image or image URL
-    - **analysis_type**: Type of analysis (general, health, behavior, breed)
-    """
+    """Streaming chat endpoint"""
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        response = ai_service.analyze_pet_image(
+        async def generate():
+            try:
+                for chunk in ai_service.stream_chat(
+                    user_message=request.user_message,
+                    use_knowledge_base=request.use_knowledge_base,
+                    custom_prompt=request.custom_prompt if request.custom_prompt and request.custom_prompt != "string" else None,
+                    temperature=request.temperature,
+                    model=request.model if request.model and request.model != "string" else None
+                ):
+                    yield f"data: {chunk}\n\n"
+                yield "data: [DONE]\n\n"
+            except Exception as e:
+                logger.error(f"Streaming error: {e}")
+                yield f"data: Error: {str(e)}\n\n"
+        
+        return StreamingResponse(generate(), media_type="text/event-stream")
+        
+    except Exception as e:
+        logger.error(f"Stream endpoint error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/v1/analyze-image", tags=["Image Analysis"])
+async def analyze_image(request: ImageAnalysisRequest):
+    """Analyze pet image"""
+    if not ai_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        result = ai_service.analyze_image(
             image_data=request.image_data,
             analysis_type=request.analysis_type
         )
         
-        if not response.get("success"):
-            raise HTTPException(status_code=500, detail=response.get("error"))
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error"))
         
-        return response
+        return result
         
     except Exception as e:
         logger.error(f"Image analysis error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/upload-image", tags=["Image Analysis"])
-async def upload_and_analyze_image(file: UploadFile = File(...)):
-    """
-    Upload and analyze pet image
-    
-    - **file**: Image file to upload
-    """
+@app.post("/v1/upload-image", tags=["Image Analysis"])
+async def upload_image(file: UploadFile = File(...)):
+    """Upload and analyze pet image"""
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
         contents = await file.read()
         import base64
-        image_data = base64.b64encode(contents).decode('utf-8')
+        image_data = base64.b64encode(contents).decode()
         
-        response = ai_service.analyze_pet_image(
-            image_data=image_data,
-            analysis_type="general"
-        )
+        result = ai_service.analyze_image(image_data=image_data, analysis_type="general")
         
-        if not response.get("success"):
-            raise HTTPException(status_code=500, detail=response.get("error"))
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error"))
         
-        return response
+        return result
         
     except Exception as e:
-        logger.error(f"Image upload analysis error: {e}")
+        logger.error(f"Image upload error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/advice", tags=["Pet Care"])
+@app.post("/v1/advice", tags=["Pet Care"])
 async def get_pet_advice(request: PetAdviceRequest):
-    """
-    Get pet care advice
-    
-    - **topic**: Advice topic (diet, health, training, behavior, etc.)
-    - **pet_type**: Type of pet (dog, cat, bird, etc.)
-    - **specific_issue**: Specific issue or question
-    """
+    """Get pet care advice"""
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        response = ai_service.get_pet_advice(
+        result = ai_service.get_pet_advice(
             topic=request.topic,
             pet_type=request.pet_type,
             specific_issue=request.specific_issue
         )
         
-        if not response.get("success"):
-            raise HTTPException(status_code=500, detail=response.get("error"))
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error"))
         
-        return response
+        return result
         
     except Exception as e:
         logger.error(f"Pet advice error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/emergency", tags=["Emergency"])
-async def emergency_consultation(request: EmergencyRequest):
-    """
-    Emergency consultation for pet health issues
-    
-    - **symptoms**: Pet symptoms description
-    - **pet_type**: Type of pet
-    - **severity**: Severity level (low, medium, high, critical)
-    """
+@app.post("/v1/emergency", tags=["Emergency"])
+async def handle_emergency(request: EmergencyRequest):
+    """Handle pet emergency situation"""
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        response = ai_service.emergency_consultation(
+        result = ai_service.handle_emergency(
             symptoms=request.symptoms,
             pet_type=request.pet_type,
             severity=request.severity
         )
         
-        if not response.get("success"):
-            raise HTTPException(status_code=500, detail=response.get("error"))
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error"))
         
-        return response
+        return result
         
     except Exception as e:
-        logger.error(f"Emergency consultation error: {e}")
+        logger.error(f"Emergency handling error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/knowledge/import", tags=["Knowledge Base"])
+@app.post("/v1/knowledge/import", tags=["Knowledge Base"])
 async def import_knowledge(request: KnowledgeImportRequest):
-    """
-    Import knowledge into knowledge base
-    
-    - **knowledge_data**: Knowledge data dictionary
-    - **category**: Knowledge category
-    """
+    """Import knowledge into knowledge base"""
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        response = ai_service.knowledge_base_import(
+        result = ai_service.knowledge_base.import_knowledge(
             knowledge_data=request.knowledge_data,
             category=request.category
         )
         
-        if not response.get("success"):
-            raise HTTPException(status_code=500, detail=response.get("error"))
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error"))
         
-        return response
+        return result
         
     except Exception as e:
         logger.error(f"Knowledge import error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/knowledge/query", tags=["Knowledge Base"])
+@app.post("/v1/knowledge/query", tags=["Knowledge Base"])
 async def query_knowledge(request: KnowledgeQueryRequest):
-    """
-    Query knowledge base
-    
-    - **query**: Search query
-    - **category**: Filter by category (optional)
-    - **limit**: Maximum number of results
-    """
+    """Query knowledge base"""
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        response = ai_service.knowledge_base_query(
+        cache_key = f"kb_query:{request.query}:{request.category}:{request.limit}"
+        
+        if cache:
+            cached_result = cache.get(cache_key)
+            if cached_result:
+                logger.info(f"Cache hit for knowledge query: {request.query}")
+                return cached_result
+        
+        results = ai_service.knowledge_base.query_knowledge(
             query=request.query,
             category=request.category,
             limit=request.limit
         )
         
-        if not response.get("success"):
-            raise HTTPException(status_code=500, detail=response.get("error"))
+        if cache:
+            cache.set(cache_key, results)
         
-        return response
+        return {
+            "success": True,
+            "query": request.query,
+            "results": results,
+            "count": len(results),
+            "timestamp": format_timestamp()
+        }
         
     except Exception as e:
         logger.error(f"Knowledge query error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/knowledge/stats", tags=["Knowledge Base"])
-async def knowledge_base_stats():
+@app.get("/v1/knowledge/stats", tags=["Knowledge Base"])
+async def get_knowledge_stats():
     """Get knowledge base statistics"""
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        return ai_service.knowledge_base_stats()
+        cache_key = "kb_stats"
+        
+        if cache:
+            cached_stats = cache.get(cache_key)
+            if cached_stats:
+                return cached_stats
+        
+        stats = ai_service.knowledge_base.get_statistics()
+        
+        if cache:
+            cache.set(cache_key, stats, ttl=60)
+        
+        return stats
+        
     except Exception as e:
         logger.error(f"Knowledge stats error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/knowledge/{knowledge_id}", tags=["Knowledge Base"])
+@app.get("/v1/knowledge/{knowledge_id}", tags=["Knowledge Base"])
 async def get_knowledge_by_id(knowledge_id: str):
-    """
-    Get knowledge entry by ID
-    
-    - **knowledge_id**: Knowledge entry ID
-    """
+    """Get knowledge entry by ID"""
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        result = ai_service.knowledge_base.get_knowledge_by_id(knowledge_id)
-        if result:
-            return {
-                "success": True,
-                "data": result,
-                "timestamp": format_timestamp()
-            }
-        else:
+        entry = ai_service.knowledge_base.get_knowledge_by_id(knowledge_id)
+        
+        if not entry:
             raise HTTPException(status_code=404, detail="Knowledge entry not found")
+        
+        return {
+            "success": True,
+            "entry": entry,
+            "timestamp": format_timestamp()
+        }
+        
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Get knowledge error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.put("/knowledge", tags=["Knowledge Base"])
+@app.put("/v1/knowledge", tags=["Knowledge Base"])
 async def update_knowledge(request: KnowledgeUpdateRequest):
-    """
-    Update knowledge entry
-    
-    - **knowledge_id**: Knowledge entry ID to update
-    - **knowledge_data**: New knowledge data
-    """
+    """Update knowledge entry"""
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        response = ai_service.knowledge_base.update_knowledge(
+        result = ai_service.knowledge_base.update_knowledge(
             knowledge_id=request.knowledge_id,
             new_data=request.knowledge_data
         )
         
-        if not response.get("success"):
-            raise HTTPException(status_code=500, detail=response.get("error"))
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error"))
         
-        return response
-    except HTTPException:
-        raise
+        if cache:
+            cache.clear()
+        
+        return result
+        
     except Exception as e:
-        logger.error(f"Update knowledge error: {e}")
+        logger.error(f"Knowledge update error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/knowledge/{knowledge_id}", tags=["Knowledge Base"])
+@app.delete("/v1/knowledge/{knowledge_id}", tags=["Knowledge Base"])
 async def delete_knowledge(knowledge_id: str):
-    """
-    Delete knowledge entry
-    
-    - **knowledge_id**: Knowledge entry ID to delete
-    """
+    """Delete knowledge entry"""
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        response = ai_service.knowledge_base.delete_knowledge(knowledge_id)
+        result = ai_service.knowledge_base.delete_knowledge(knowledge_id)
         
-        if not response.get("success"):
-            raise HTTPException(status_code=500, detail=response.get("error"))
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error"))
         
-        return response
-    except HTTPException:
-        raise
+        if cache:
+            cache.clear()
+        
+        return result
+        
     except Exception as e:
-        logger.error(f"Delete knowledge error: {e}")
+        logger.error(f"Knowledge delete error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/knowledge/categories", tags=["Knowledge Base"])
+@app.get("/v1/knowledge/categories", tags=["Knowledge Base"])
 async def get_knowledge_categories():
     """Get all knowledge categories"""
     if not ai_service:
@@ -507,97 +547,131 @@ async def get_knowledge_categories():
     
     try:
         categories = ai_service.knowledge_base.get_all_categories()
+        
         return {
             "success": True,
             "categories": categories,
             "count": len(categories),
             "timestamp": format_timestamp()
         }
+        
     except Exception as e:
         logger.error(f"Get categories error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/prompts/system", tags=["Prompts"])
+@app.get("/v1/prompts/system", tags=["Prompts"])
 async def get_system_prompt():
-    """Get current system prompt"""
+    """Get system prompt"""
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        return ai_service.prompt_management("get_system")
+        prompt = ai_service.prompt_manager.get_system_prompt()
+        
+        return {
+            "success": True,
+            "prompt": prompt,
+            "timestamp": format_timestamp()
+        }
+        
     except Exception as e:
         logger.error(f"Get system prompt error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/prompts/custom", tags=["Prompts"])
+@app.post("/v1/prompts/custom", tags=["Prompts"])
 async def create_custom_prompt(request: PromptCreateRequest):
-    """
-    Create custom prompt
-    
-    - **name**: Prompt name
-    - **content**: Prompt content
-    - **description**: Prompt description
-    """
+    """Create custom prompt"""
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        response = ai_service.prompt_management(
-            action="create_custom",
-            prompt_name=request.name,
-            prompt_content=request.content,
+        result = ai_service.prompt_manager.save_custom_prompt(
+            name=request.name,
+            content=request.content,
             description=request.description
         )
         
-        if not response.get("success"):
-            raise HTTPException(status_code=500, detail=response.get("error"))
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error"))
         
-        return response
+        return result
         
     except Exception as e:
         logger.error(f"Create custom prompt error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/prompts/custom", tags=["Prompts"])
+@app.get("/v1/prompts/custom", tags=["Prompts"])
 async def list_custom_prompts():
     """List all custom prompts"""
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        return ai_service.prompt_management("list_custom")
+        prompts = ai_service.prompt_manager.list_custom_prompts()
+        
+        return {
+            "success": True,
+            "prompts": prompts,
+            "count": len(prompts),
+            "timestamp": format_timestamp()
+        }
+        
     except Exception as e:
         logger.error(f"List custom prompts error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/prompts/custom/{prompt_name}", tags=["Prompts"])
+@app.get("/v1/prompts/custom/{prompt_name}", tags=["Prompts"])
 async def get_custom_prompt(prompt_name: str):
-    """Get specific custom prompt"""
+    """Get custom prompt by name"""
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        response = ai_service.prompt_management(
-            action="get_custom",
-            prompt_name=prompt_name
-        )
+        prompt = ai_service.prompt_manager.get_custom_prompt(prompt_name)
         
-        if not response.get("success"):
+        if not prompt:
             raise HTTPException(status_code=404, detail="Prompt not found")
         
-        return response
+        return {
+            "success": True,
+            "prompt": prompt,
+            "timestamp": format_timestamp()
+        }
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Get custom prompt error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/v1/cache/stats", tags=["System"])
+async def get_cache_stats():
+    """Get cache statistics"""
+    if not cache:
+        return {"message": "Cache not enabled"}
+    
+    return cache.get_stats()
+
+@app.post("/v1/cache/clear", tags=["System"])
+async def clear_cache():
+    """Clear all cache"""
+    if not cache:
+        return {"message": "Cache not enabled"}
+    
+    cache.clear()
+    model_cache.invalidate_models()
+    
+    return {"success": True, "message": "Cache cleared"}
+
 def start_server(host: str = None, port: int = None):
     """Start the FastAPI server"""
-    host = host or Config.API_HOST
-    port = port or Config.API_PORT
-    
-    logger.info(f"Starting AI Agent API server on {host}:{port}")
-    uvicorn.run(app, host=host, port=port)
+    uvicorn.run(
+        "api:app",
+        host=host or Config.API_HOST,
+        port=port or Config.API_PORT,
+        reload=True,
+        log_level=Config.LOG_LEVEL.lower()
+    )
 
 if __name__ == "__main__":
     start_server()

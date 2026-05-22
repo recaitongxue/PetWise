@@ -354,3 +354,48 @@ class SiliconFlowClient:
         """Close the session"""
         self.session.close()
         logger.info("SiliconFlow client session closed")
+    
+    def get_available_models(self) -> List[Dict[str, Any]]:
+        """
+        Get list of available models from SiliconFlow API
+        
+        Returns:
+            List of available models with their details
+        """
+        try:
+            endpoint = f"{self.base_url}/models"
+            
+            logger.info(f"Fetching available models from {endpoint}")
+            
+            response = self.session.get(endpoint, timeout=30)
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            models = []
+            if "data" in result:
+                for model in result["data"]:
+                    models.append({
+                        "id": model.get("id"),
+                        "name": model.get("id", "").split("/")[-1] if model.get("id") else "",
+                        "object": model.get("object", "model"),
+                        "owned_by": model.get("owned_by", ""),
+                        "capabilities": model.get("capabilities", {}),
+                        "context_length": model.get("context_length", 0)
+                    })
+            
+            logger.info(f"Successfully retrieved {len(models)} available models")
+            
+            return {
+                "success": True,
+                "models": models,
+                "total": len(models),
+                "timestamp": format_timestamp()
+            }
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to fetch models: {e}")
+            raise APIException(f"Failed to fetch models: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error fetching models: {e}")
+            raise APIException(f"Unexpected error: {e}")
