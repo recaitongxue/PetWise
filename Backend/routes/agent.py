@@ -2,54 +2,27 @@ import json
 from flask import Blueprint, request, jsonify, session
 from models.db import get_db
 from utils import log_action, generate_fallback_response, generate_suggestions
+from services.ai_agent_client import AIAgentClient
 
 agent_bp = Blueprint('agent', __name__)
 
-try:
-    from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
-    import torch
-    LLM_AVAILABLE = True
-    try:
-        tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
-        model = AutoModelForCausalLM.from_pretrained(
-            "microsoft/phi-2",
-            device_map="auto",
-            torch_dtype="auto",
-            trust_remote_code=True
-        )
-        pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
-    except Exception:
-        LLM_AVAILABLE = False
-except Exception:
-    LLM_AVAILABLE = False
+ai_client = AIAgentClient()
 
 def generate_llm_response(prompt, breed_context=""):
+    """Generate response from AI Agent or fallback"""
     try:
-        system_prompt = "你是一个专业的宠物顾问，擅长回答关于宠物饲养、健康、训练等方面的问题。"
+        # First try AI Agent service
+        response = ai_client.chat(
+            user_message=prompt,
+            use_knowledge_base=True,
+            temperature=0.7
+        )
         
-        if breed_context:
-            system_prompt += f"当前讨论的宠物品种是：{breed_context}。"
-        
-        system_prompt += "请用中文回答，语言简洁友好。"
-        
-        full_prompt = f"{system_prompt}\n\n用户问题：{prompt}\n\n回答："
-        
-        if LLM_AVAILABLE:
-            outputs = pipe(
-                full_prompt,
-                max_new_tokens=200,
-                temperature=0.7,
-                top_p=0.95,
-                repetition_penalty=1.15,
-                pad_token_id=tokenizer.eos_token_id
-            )
-            response = outputs[0]['generated_text'].replace(full_prompt, "").strip()
-            if not response or len(response) < 10:
-                response = generate_fallback_response(prompt, breed_context)
+        if response.get("success") and response.get("content"):
+            return response["content"]
         else:
-            response = generate_fallback_response(prompt, breed_context)
-        
-        return response
+            # Fallback to local response
+            return generate_fallback_response(prompt, breed_context)
     except Exception:
         return generate_fallback_response(prompt, breed_context)
 
@@ -81,7 +54,7 @@ def agent_chat():
         db.execute('''
             INSERT INTO chat_history (user_id, session_id, role, message, breed_context, model_used)
             VALUES (?, ?, 'assistant', ?, ?, ?)
-        ''', (user_id, session_id, response, breed_context, 'microsoft/phi-2' if LLM_AVAILABLE else 'fallback'))
+        ''', (user_id, session_id, response, breed_context, 'ai_agent_service'))
         db.commit()
 
         suggestions = generate_suggestions(message, breed_context)
@@ -92,7 +65,7 @@ def agent_chat():
             "success": True,
             "session_id": session_id,
             "response": response,
-            "model": 'microsoft/phi-2' if LLM_AVAILABLE else 'fallback',
+            "model": 'ai_agent_service',
             "suggestions": suggestions
         })
     except Exception as e:
@@ -140,5 +113,137 @@ def clear_history():
         db.commit()
 
         return jsonify({"success": True, "message": "History cleared"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@agent_bp.route('/agent/advice', methods=['POST'])
+def get_advice():
+    if 'user_id' not in session:
+        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
+
+    try:
+        data = request.get_json()
+        topic = data.get('topic')
+        pet_type = data.get('pet_type')
+        specific_issue = data.get('specific_issue')
+
+        if not topic:
+            return jsonify({"error": "Topic is required"}), 400
+
+        user_id = session['user_id']
+        db = get_db()
+
+        response = ai_client.get_pet_advice(topic, pet_type, specific_issue)
+
+        if response.get("success"):
+            log_action(db, user_id, 'get_advice', {'topic': topic, 'pet_type': pet_type})
+            return jsonify({
+                "success": True,
+                "topic": topic,
+                "pet_type": pet_type,
+                "advice": response.get("advice", response.get("content", "")),
+                "timestamp": response.get("timestamp")
+            })
+        else:
+            fallback_advice = generate_fallback_response(f"关于{topic}的建议", pet_type)
+            log_action(db, user_id, 'get_advice', {'topic': topic, 'pet_type': pet_type, 'fallback': True})
+            return jsonify({
+                "success": True,
+                "topic": topic,
+                "pet_type": pet_type,
+                "advice": fallback_advice,
+                "source": "fallback"
+            })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@agent_bp.route('/agent/emergency', methods=['POST'])
+def emergency_consultation():
+    if 'user_id' not in session:
+        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
+
+    try:
+        data = request.get_json()
+        symptoms = data.get('symptoms')
+        pet_type = data.get('pet_type')
+        severity = data.get('severity', 'medium')
+
+        if not symptoms or not pet_type:
+            return jsonify({"error": "Symptoms and pet_type are required"}), 400
+
+        user_id = session['user_id']
+        db = get_db()
+
+        response = ai_client.emergency_consultation(symptoms, pet_type, severity)
+
+        if response.get("success"):
+            log_action(db, user_id, 'emergency_consultation', {'symptoms': symptoms[:50], 'pet_type': pet_type, 'severity': severity})
+            return jsonify({
+                "success": True,
+                "severity": severity,
+                "pet_type": pet_type,
+                "consultation": response.get("consultation", response.get("content", "")),
+                "recommendation": response.get("recommendation", "general_advice"),
+                "timestamp": response.get("timestamp")
+            })
+        else:
+            fallback_response = f"""紧急情况咨询！
+
+宠物类型：{pet_type}
+严重程度：{severity}
+症状描述：{symptoms}
+
+建议：
+1. 请保持冷静，观察宠物状态
+2. 记录症状细节（时间、表现等）
+3. 尽快联系附近的宠物医院
+4. 在送医途中尽量保持宠物舒适
+
+**请立即就医！**"""
+            log_action(db, user_id, 'emergency_consultation', {'symptoms': symptoms[:50], 'pet_type': pet_type, 'fallback': True})
+            return jsonify({
+                "success": True,
+                "severity": severity,
+                "pet_type": pet_type,
+                "consultation": fallback_response,
+                "recommendation": "seek_immediate_medical_attention",
+                "source": "fallback"
+            })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@agent_bp.route('/agent/health', methods=['GET'])
+def agent_health():
+    if 'user_id' not in session:
+        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
+
+    try:
+        response = ai_client.health_check()
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({
+            "status": "unhealthy",
+            "error": str(e)
+        })
+
+@agent_bp.route('/agent/info', methods=['GET'])
+def agent_info():
+    if 'user_id' not in session:
+        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
+
+    try:
+        response = ai_client.get_info()
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@agent_bp.route('/agent/models', methods=['GET'])
+def agent_models():
+    if 'user_id' not in session:
+        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
+
+    try:
+        response = ai_client.get_models()
+        return jsonify(response)
     except Exception as e:
         return jsonify({"error": str(e)}), 500

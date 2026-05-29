@@ -1,21 +1,28 @@
-# PetWise API 接口文档 v3.0
+# PetWise API 接口文档 v4.0
 
 ## 概述
 
-PetWise API v3.0 是一个功能完善的用户系统，包含用户角色（管理员/普通用户）、SQLite 数据库、功能丰富的宠物服务平台。
+PetWise API v4.0 是一个功能完善的宠物服务平台后端系统，包含：
+- 👤 用户认证系统（管理员/普通用户角色）
+- 📸 宠物品种识别（基于 EfficientNet-B3）
+- 🤖 AI智能体对话（调用 ai_agent 服务）
+- 🐾 宠物档案管理
+- ⭐ 收藏与评论系统
+- 📊 系统管理后台
+- 📢 公告与反馈系统
 
 **基础 URL**: `http://localhost:5000`
 
-### 核心功能
+### 核心功能模块
 
-- 👤 **用户认证系统** - 注册、登录、Token 认证
-- 🔐 **角色权限管理** - 管理员(admin)和普通用户(user)
-- 📸 **宠物品种识别** - 基于 EfficientNet-B3
-- 🤖 **AI 智能体对话** - 基于大语言模型
-- 🐾 **宠物档案管理** - 用户宠物管理
-- ⭐ **收藏与评论** - 宠物品种收藏、评分评论
-- 📊 **系统管理后台** - 用户管理、统计日志
-- 📢 **公告系统** - 系统公告发布
+| 模块 | 功能 |
+|------|------|
+| **认证模块** | 用户注册、登录、个人信息管理 |
+| **宠物识别** | 图片识别、Base64识别、识别历史 |
+| **AI智能体** | 对话、咨询建议、紧急救援 |
+| **宠物档案** | CRUD完整管理 |
+| **收藏评论** | 品种收藏、评分评论 |
+| **系统管理** | 用户管理、统计日志、公告管理 |
 
 ### 数据库
 
@@ -25,12 +32,12 @@ PetWise API v3.0 是一个功能完善的用户系统，包含用户角色（管
 
 | 表名 | 说明 |
 |------|------|
-| users | 用户表 |
+| users | 用户表（含角色：admin/user） |
 | pets | 宠物档案表 |
 | recognitions | 识别记录表 |
-| chat_history | 对话历史表 |
+| chat_history | AI对话历史表 |
 | favorites | 收藏表 |
-| breed_info | 品种信息表 |
+| breed_info | 品种信息表（23种宠物） |
 | comments | 评论表 |
 | system_logs | 系统日志表 |
 | announcements | 公告表 |
@@ -73,21 +80,28 @@ Authorization: <token>
 | GET | `/api/auth/profile` | ✅ | 获取个人信息 |
 | PUT | `/api/auth/profile` | ✅ | 更新个人信息 |
 
-### 宠物识别 (3个)
+### 宠物识别 (6个)
 
 | 方法 | 路径 | 认证 | 描述 |
 |------|------|------|------|
-| POST | `/api/recognize` | ✅ | 识别宠物品种 |
+| POST | `/api/recognize` | ✅ | 识别宠物品种（文件上传） |
+| POST | `/api/recognize/base64` | ✅ | 识别宠物品种（Base64） |
 | GET | `/api/recognize/history` | ✅ | 识别历史记录 |
+| DELETE | `/api/recognize/history/{id}` | ✅ | 删除识别记录 |
 | GET | `/api/classes` | ❌ | 获取所有宠物类别 |
+| GET | `/api/model/status` | ❌ | 模型状态检查 |
 
-### AI智能体 (3个)
+### AI智能体 (7个)
 
 | 方法 | 路径 | 认证 | 描述 |
 |------|------|------|------|
 | POST | `/api/agent/chat` | ✅ | AI对话 |
 | GET | `/api/agent/history` | ✅ | 对话历史 |
 | DELETE | `/api/agent/history` | ✅ | 清除对话历史 |
+| POST | `/api/agent/advice` | ✅ | 获取养宠建议 |
+| POST | `/api/agent/emergency` | ✅ | 紧急咨询 |
+| GET | `/api/agent/health` | ✅ | AI服务健康检查 |
+| GET | `/api/agent/models` | ✅ | 获取可用模型 |
 
 ### 宠物档案 (5个)
 
@@ -95,40 +109,42 @@ Authorization: <token>
 |------|------|------|------|
 | GET | `/api/pets` | ✅ | 我的宠物列表 |
 | POST | `/api/pets` | ✅ | 添加宠物 |
-| GET | `/api/pets/<id>` | ✅ | 宠物详情 |
-| PUT | `/api/pets/<id>` | ✅ | 更新宠物 |
-| DELETE | `/api/pets/<id>` | ✅ | 删除宠物 |
+| GET | `/api/pets/{id}` | ✅ | 宠物详情 |
+| PUT | `/api/pets/{id}` | ✅ | 更新宠物 |
+| DELETE | `/api/pets/{id}` | ✅ | 删除宠物 |
 
-### 收藏与评论 (5个)
+### 收藏与评论 (6个)
 
 | 方法 | 路径 | 认证 | 描述 |
 |------|------|------|------|
 | GET | `/api/favorites` | ✅ | 我的收藏 |
 | POST | `/api/favorites` | ✅ | 添加收藏 |
-| DELETE | `/api/favorites/<breed>` | ✅ | 取消收藏 |
-| GET | `/api/comments/<breed>` | ❌ | 评论列表 |
+| DELETE | `/api/favorites/{breed}` | ✅ | 取消收藏 |
+| GET | `/api/comments/{breed}` | ❌ | 评论列表 |
 | POST | `/api/comments` | ✅ | 添加评论 |
+| POST | `/api/comments/{id}/like` | ✅ | 点赞评论 |
 
-### 其他接口 (2个)
+### 其他接口 (3个)
 
 | 方法 | 路径 | 认证 | 描述 |
 |------|------|------|------|
-| GET | `/api/breed/<breed>` | ❌ | 品种详情 |
+| GET | `/api/breed/{breed}` | ❌ | 品种详情 |
 | POST | `/api/feedback` | ✅ | 提交反馈 |
+| GET | `/api/health_check` | ❌ | 服务健康检查 |
 
-### 管理员接口 (8个)
+### 管理员接口 (9个)
 
 | 方法 | 路径 | 认证 | 描述 |
 |------|------|------|------|
 | GET | `/api/admin/users` | ✅Admin | 用户管理 |
-| PUT | `/api/admin/users/<id>` | ✅Admin | 更新用户 |
+| PUT | `/api/admin/users/{id}` | ✅Admin | 更新用户 |
 | GET | `/api/admin/stats` | ✅Admin | 系统统计 |
 | GET | `/api/admin/logs` | ✅Admin | 操作日志 |
 | GET | `/api/admin/announcements` | ❌ | 获取公告 |
 | POST | `/api/admin/announcements` | ✅Admin | 发布公告 |
 | GET | `/api/admin/feedback` | ✅Admin | 用户反馈 |
-| PUT | `/api/admin/feedback/<id>` | ✅Admin | 回复反馈 |
-| PUT | `/api/admin/breeds/<breed>` | ✅Admin | 更新品种信息 |
+| PUT | `/api/admin/feedback/{id}` | ✅Admin | 回复反馈 |
+| PUT | `/api/admin/breeds/{breed}` | ✅Admin | 更新品种信息 |
 
 ---
 
@@ -319,13 +335,34 @@ Content-Type: multipart/form-data
     "suitable_for": "新手铲屎官",
     "views": 100,
     "likes": 20
-  }
+  },
+  "model_available": true
 }
 ```
 
 ---
 
-## 6. AI智能体对话
+## 6. Base64识别
+
+### 请求
+
+```http
+POST /api/recognize/base64
+Authorization: <token>
+Content-Type: application/json
+```
+
+**请求体**:
+
+```json
+{
+  "image_base64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQE..."
+}
+```
+
+---
+
+## 7. AI智能体对话
 
 ### 请求
 
@@ -345,20 +382,14 @@ Content-Type: application/json
 }
 ```
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| message | string | ✅ | 用户问题 |
-| session_id | string | ❌ | 会话ID（默认default） |
-| breed_context | string | ❌ | 宠物上下文 |
-
 ### 响应
 
 ```json
 {
   "success": true,
   "session_id": "user123",
-  "response": "关于英国短毛猫的饲养建议...",
-  "model": "microsoft/phi-2",
+  "response": "英国短毛猫性格温和，适合家庭饲养...",
+  "model": "ai_agent_service",
   "suggestions": [
     "告诉我关于英国短毛猫的性格特点",
     "英国短毛猫容易患什么疾病？",
@@ -369,9 +400,78 @@ Content-Type: application/json
 
 ---
 
-## 7. 宠物档案管理
+## 8. 养宠建议
 
-### 7.1 添加宠物
+### 请求
+
+```http
+POST /api/agent/advice
+Authorization: <token>
+Content-Type: application/json
+```
+
+**请求体**:
+
+```json
+{
+  "topic": "饮食",
+  "pet_type": "cat",
+  "specific_issue": "英国短毛猫的饮食建议"
+}
+```
+
+### 响应
+
+```json
+{
+  "success": true,
+  "topic": "饮食",
+  "pet_type": "cat",
+  "advice": "英国短毛猫需要高蛋白饮食...",
+  "timestamp": "2024-01-15 10:30:00"
+}
+```
+
+---
+
+## 9. 紧急咨询
+
+### 请求
+
+```http
+POST /api/agent/emergency
+Authorization: <token>
+Content-Type: application/json
+```
+
+**请求体**:
+
+```json
+{
+  "symptoms": "猫咪呕吐、精神不振",
+  "pet_type": "cat",
+  "severity": "high"
+}
+```
+
+### 响应
+
+```json
+{
+  "success": true,
+  "severity": "high",
+  "pet_type": "cat",
+  "consultation": "紧急情况！猫咪呕吐可能是多种原因...",
+  "recommendation": "seek_immediate_medical_attention",
+  "timestamp": "2024-01-15 10:30:00"
+}
+```
+
+---
+
+## 10. 宠物档案管理
+
+### 10.1 添加宠物
 
 ```http
 POST /api/pets
@@ -388,21 +488,21 @@ Content-Type: application/json
 }
 ```
 
-### 7.2 获取宠物列表
+### 10.2 获取宠物列表
 
 ```http
-GET /api/pets
+GET /api/pets?page=1&per_page=10
 Authorization: <token>
 ```
 
-### 7.3 获取宠物详情
+### 10.3 获取宠物详情
 
 ```http
 GET /api/pets/1
 Authorization: <token>
 ```
 
-### 7.4 更新宠物
+### 10.4 更新宠物
 
 ```http
 PUT /api/pets/1
@@ -415,7 +515,7 @@ Content-Type: application/json
 }
 ```
 
-### 7.5 删除宠物
+### 10.5 删除宠物
 
 ```http
 DELETE /api/pets/1
@@ -424,9 +524,9 @@ Authorization: <token>
 
 ---
 
-## 8. 收藏与评论
+## 11. 收藏与评论
 
-### 8.1 添加收藏
+### 11.1 添加收藏
 
 ```http
 POST /api/favorites
@@ -438,27 +538,14 @@ Content-Type: application/json
 }
 ```
 
-### 8.2 我的收藏
+### 11.2 我的收藏
 
 ```http
 GET /api/favorites
 Authorization: <token>
 ```
 
-### 8.3 取消收藏
-
-```http
-DELETE /api/favorites/英国短毛猫
-Authorization: <token>
-```
-
-### 8.4 获取评论
-
-```http
-GET /api/comments/英国短毛猫?page=1&per_page=10
-```
-
-### 8.5 添加评论
+### 11.3 添加评论
 
 ```http
 POST /api/comments
@@ -474,29 +561,16 @@ Content-Type: application/json
 
 ---
 
-## 9. 管理员接口
+## 12. 管理员接口
 
-### 9.1 获取用户列表
+### 12.1 获取用户列表
 
 ```http
 GET /api/admin/users?page=1&per_page=20&role=user
 Authorization: <admin_token>
 ```
 
-### 9.2 更新用户
-
-```http
-PUT /api/admin/users/1
-Authorization: <admin_token>
-Content-Type: application/json
-
-{
-  "role": "admin",
-  "is_active": 1
-}
-```
-
-### 9.3 系统统计
+### 12.2 系统统计
 
 ```http
 GET /api/admin/stats
@@ -514,26 +588,13 @@ Authorization: <admin_token>
   "total_comments": 200,
   "total_chats": 1000,
   "pending_feedback": 5,
-  "breed_stats": [
-    {"breed": "英国短毛猫", "views": 1000, "likes": 100, "comment_count": 50}
-  ],
-  "recent_registrations": [
-    {"username": "user1", "created_at": "2024-01-15"}
-  ],
-  "daily_recognitions": [
-    {"date": "2024-01-15", "count": 100}
-  ]
+  "breed_stats": [...],
+  "recent_registrations": [...],
+  "daily_recognitions": [...]
 }
 ```
 
-### 9.4 操作日志
-
-```http
-GET /api/admin/logs?page=1&per_page=50
-Authorization: <admin_token>
-```
-
-### 9.5 发布公告
+### 12.3 发布公告
 
 ```http
 POST /api/admin/announcements
@@ -544,31 +605,6 @@ Content-Type: application/json
   "title": "系统维护通知",
   "content": "将于今晚10点进行系统维护...",
   "is_pinned": 1
-}
-```
-
-### 9.6 回复反馈
-
-```http
-PUT /api/admin/feedback/1
-Authorization: <admin_token>
-Content-Type: application/json
-
-{
-  "reply": "感谢您的反馈，我们已经处理..."
-}
-```
-
-### 9.7 更新品种信息
-
-```http
-PUT /api/admin/breeds/英国短毛猫
-Authorization: <admin_token>
-Content-Type: application/json
-
-{
-  "personality": "安静、温和、亲人、粘人",
-  "common_issues": "心脏病、肥胖、肾脏疾病、眼部问题"
 }
 ```
 
@@ -609,27 +645,18 @@ python app.py
 
 ---
 
-## 环境要求
+## AI Agent 服务
 
-- Python 3.8+
-- Flask 2.0+
-- PyTorch 2.0+
-- transformers 4.30+
-- torchvision 0.15+
-- Pillow 9.0+
+后端通过 HTTP 调用 `http://localhost:8000` 的 AI Agent 服务。如需使用完整 AI 功能，请先启动 ai_agent 服务：
+
+```bash
+cd e:\PetWise\ai_agent
+pip install -r requirements.txt
+python main.py
+```
 
 ---
 
 ## 默认管理员
 
 注册用户名为 `admin` 的账号将自动设置为管理员角色。
-
-示例：
-
-```bash
-curl -X POST http://localhost:5000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "admin123"}'
-```
-
-然后使用 admin/admin123 登录即可访问所有管理员接口。
