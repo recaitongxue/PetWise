@@ -1,7 +1,7 @@
 import json
 from flask import Blueprint, request, jsonify, session
 from models.db import get_db
-from utils import log_action, generate_fallback_response, generate_suggestions
+from utils import log_action
 from services.ai_agent_client import AIAgentClient
 
 agent_bp = Blueprint('agent', __name__)
@@ -9,9 +9,8 @@ agent_bp = Blueprint('agent', __name__)
 ai_client = AIAgentClient()
 
 def generate_llm_response(prompt, breed_context=""):
-    """Generate response from AI Agent or fallback"""
+    """Generate response from AI Agent service"""
     try:
-        # First try AI Agent service
         response = ai_client.chat(
             user_message=prompt,
             use_knowledge_base=True,
@@ -21,10 +20,9 @@ def generate_llm_response(prompt, breed_context=""):
         if response.get("success") and response.get("content"):
             return response["content"]
         else:
-            # Fallback to local response
-            return generate_fallback_response(prompt, breed_context)
-    except Exception:
-        return generate_fallback_response(prompt, breed_context)
+            return f"抱歉，AI服务暂时不可用，请稍后重试。关于{breed_context}，建议咨询专业兽医获取专业建议。"
+    except Exception as e:
+        return f"抱歉，服务暂时不可用，请稍后重试。"
 
 @agent_bp.route('/agent/chat', methods=['POST'])
 def agent_chat():
@@ -57,16 +55,13 @@ def agent_chat():
         ''', (user_id, session_id, response, breed_context, 'ai_agent_service'))
         db.commit()
 
-        suggestions = generate_suggestions(message, breed_context)
-
         log_action(db, user_id, 'agent_chat', {'message': message[:50], 'breed_context': breed_context})
 
         return jsonify({
             "success": True,
             "session_id": session_id,
             "response": response,
-            "model": 'ai_agent_service',
-            "suggestions": suggestions
+            "model": 'ai_agent_service'
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -145,14 +140,11 @@ def get_advice():
                 "timestamp": response.get("timestamp")
             })
         else:
-            fallback_advice = generate_fallback_response(f"关于{topic}的建议", pet_type)
-            log_action(db, user_id, 'get_advice', {'topic': topic, 'pet_type': pet_type, 'fallback': True})
+            error_msg = response.get("error", "AI服务暂时不可用")
+            log_action(db, user_id, 'get_advice', {'topic': topic, 'pet_type': pet_type, 'error': error_msg})
             return jsonify({
-                "success": True,
-                "topic": topic,
-                "pet_type": pet_type,
-                "advice": fallback_advice,
-                "source": "fallback"
+                "success": False,
+                "error": error_msg
             })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -187,30 +179,15 @@ def emergency_consultation():
                 "timestamp": response.get("timestamp")
             })
         else:
-            fallback_response = f"""紧急情况咨询！
-
-宠物类型：{pet_type}
-严重程度：{severity}
-症状描述：{symptoms}
-
-建议：
-1. 请保持冷静，观察宠物状态
-2. 记录症状细节（时间、表现等）
-3. 尽快联系附近的宠物医院
-4. 在送医途中尽量保持宠物舒适
-
-**请立即就医！**"""
-            log_action(db, user_id, 'emergency_consultation', {'symptoms': symptoms[:50], 'pet_type': pet_type, 'fallback': True})
+            error_msg = response.get("error", "AI服务暂时不可用")
+            log_action(db, user_id, 'emergency_consultation', {'symptoms': symptoms[:50], 'pet_type': pet_type, 'severity': severity, 'error': error_msg})
             return jsonify({
-                "success": True,
-                "severity": severity,
-                "pet_type": pet_type,
-                "consultation": fallback_response,
-                "recommendation": "seek_immediate_medical_attention",
-                "source": "fallback"
+                "success": False,
+                "error": error_msg,
+                "warning": "紧急情况下请直接联系宠物医院！"
             })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e), "warning": "紧急情况下请直接联系宠物医院！"}), 500
 
 @agent_bp.route('/agent/health', methods=['GET'])
 def agent_health():
