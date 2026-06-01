@@ -1,6 +1,7 @@
 """
 Knowledge Base Management Module
 Handles knowledge base import, storage, and retrieval using SQLite
+Enhanced with TF-IDF search algorithm
 """
 import json
 import os
@@ -17,8 +18,18 @@ from exceptions import KnowledgeBaseException
 
 logger = setup_logging(Config.LOG_LEVEL)
 
+try:
+    import jieba
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
+    import numpy as np
+    TF_IDF_AVAILABLE = True
+except ImportError:
+    TF_IDF_AVAILABLE = False
+    logger.warning("TF-IDF dependencies not installed. Using basic search.")
+
 class KnowledgeBase:
-    """Knowledge Base Manager using SQLite"""
+    """Knowledge Base Manager using SQLite with TF-IDF search"""
     
     def __init__(self, db_path: Optional[str] = None):
         """
@@ -31,6 +42,9 @@ class KnowledgeBase:
         ensure_directory(os.path.dirname(self.db_path))
         self._init_database()
         self._migrate_from_json()
+        self._tfidf_vectorizer = None
+        self._tfidf_matrix = None
+        self._document_ids = []
         logger.info(f"Knowledge Base initialized with SQLite: {self.db_path}")
     
     def _init_database(self):
@@ -45,6 +59,7 @@ class KnowledgeBase:
                     title TEXT,
                     data TEXT NOT NULL,
                     keywords TEXT,
+                    full_text TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
@@ -70,10 +85,11 @@ class KnowledgeBase:
             conn.commit()
     
     def _migrate_from_json(self):
-        """Migrate data from JSON file to SQLite if DB is empty"""
+        """Migrate data from JSON file to SQLite if DB is empty with transaction support"""
         json_path = Config.KNOWLEDGE_BASE_FILE
         
         if not os.path.exists(json_path):
+            logger.debug(f"JSON file not found: {json_path}")
             return
         
         with sqlite3.connect(self.db_path) as conn:
@@ -82,64 +98,168 @@ class KnowledgeBase:
             count = cursor.fetchone()[0]
             
             if count > 0:
+                logger.debug("Database already has data, skipping migration")
                 return
         
-        logger.info("Migrating knowledge from JSON to SQLite...")
+        is_temp_db = "temp" in self.db_path.lower() or "tmp" in self.db_path.lower()
+        if is_temp_db:
+            logger.debug("Skipping migration for temporary database")
+            return
+        
+        logger.info("Starting knowledge migration from JSON to SQLite...")
         
         try:
             data = load_json_file(json_path)
             
             if "categories" in data:
-                self._import_structured_data(data)
+                result = self._import_structured_data(data)
             else:
-                self._import_legacy_data(data)
+                result = self._import_legacy_data(data)
             
-            logger.info("Migration completed successfully")
+            if result.get("success", True):
+                logger.info("Migration completed successfully")
+            else:
+                logger.warning(f"Partial migration completed: {result.get('message', '')}")
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON file: {e}")
         except Exception as e:
-            logger.warning(f"Failed to migrate from JSON: {e}")
+            logger.error(f"Migration failed with error: {e}", exc_info=True)
     
-    def _import_structured_data(self, structured_data: Dict[str, Any]):
-        """Import structured knowledge base format"""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            
-            for category_name, category_data in structured_data["categories"].items():
-                category_display_name = category_data.get("name", category_name)
-                category_description = category_data.get("description", "")
+    def _import_structured_data(self, structured_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Import structured knowledge base format with transaction support"""
+        imported_count = 0
+        skipped_count = 0
+        
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
                 
-                cursor.execute('INSERT OR IGNORE INTO categories (name, description, created_at) VALUES (?, ?, ?)',
-                    (category_display_name, category_description, format_timestamp()))
+                conn.execute("BEGIN TRANSACTION")
                 
-                entries = category_data.get("entries", [])
-                for entry in entries:
-                    knowledge_id = entry.get("id", f"kb_{datetime.now().strftime('%Y%m%d%H%M%S%f')}")
-                    title = entry.get("title", entry.get("name", ""))
-                    data_json = json.dumps(entry, ensure_ascii=False)
-                    keywords = self._extract_keywords(entry)
+                try:
+                    for category_name, category_data in structured_data["categories"].items():
+                        category_display_name = category_data.get("name", category_name)
+                        category_description = category_data.get("description", "")
+                        
+                        cursor.execute('INSERT OR IGNORE INTO categories (name, description, created_at) VALUES (?, ?, ?)',
+                            (category_display_name, category_description, format_timestamp()))
+                        
+                        entries = category_data.get("entries", [])
+                        for entry in entries:
+                            try:
+                                knowledge_id = entry.get("id", f"kb_{datetime.now().strftime('%Y%m%d%H%M%S%f')}")
+                                title = entry.get("title", entry.get("name", ""))
+                                data_json = json.dumps(entry, ensure_ascii=False)
+                                keywords = self._extract_keywords(entry)
+                                full_text = self._generate_full_text(entry)
+                                
+                                cursor.execute('INSERT OR IGNORE INTO knowledge (id, category, title, data, keywords, full_text, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                                    (knowledge_id, category_display_name, title, data_json, keywords, full_text, format_timestamp(), format_timestamp()))
+                                
+                                if cursor.rowcount > 0:
+                                    imported_count += 1
+                                else:
+                                    skipped_count += 1
+                            
+                            except Exception as e:
+                                logger.warning(f"Skipping entry due to error: {e}")
+                                skipped_count += 1
+                                continue
                     
-                    cursor.execute('INSERT OR IGNORE INTO knowledge (id, category, title, data, keywords, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                        (knowledge_id, category_display_name, title, data_json, keywords, format_timestamp(), format_timestamp()))
-            
-            conn.commit()
-    
-    def _import_legacy_data(self, legacy_data: Dict[str, Any]):
-        """Import legacy knowledge base format"""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            
-            for kb_id, entry in legacy_data.items():
-                category = entry.get("category", "general")
-                title = entry.get("title", "")
-                data = entry.get("data", {})
-                data_json = json.dumps(data, ensure_ascii=False)
-                keywords = self._extract_keywords(data)
-                created_at = entry.get("created_at", format_timestamp())
-                updated_at = entry.get("updated_at", format_timestamp())
+                    conn.commit()
+                    logger.info(f"Structured data import completed: {imported_count} imported, {skipped_count} skipped")
+                    
+                    return {
+                        "success": True,
+                        "imported": imported_count,
+                        "skipped": skipped_count,
+                        "message": f"Successfully imported {imported_count} entries"
+                    }
                 
-                cursor.execute('INSERT OR IGNORE INTO knowledge (id, category, title, data, keywords, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                    (kb_id, category, title, data_json, keywords, created_at, updated_at))
-            
-            conn.commit()
+                except Exception as e:
+                    conn.rollback()
+                    logger.error(f"Failed to import structured data, rolled back: {e}")
+                    return {
+                        "success": False,
+                        "imported": imported_count,
+                        "skipped": skipped_count,
+                        "message": f"Migration failed: {str(e)}"
+                    }
+                    
+        except Exception as e:
+            logger.error(f"Database connection error during structured import: {e}")
+            return {
+                "success": False,
+                "imported": 0,
+                "skipped": 0,
+                "message": f"Database error: {str(e)}"
+            }
+    
+    def _import_legacy_data(self, legacy_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Import legacy knowledge base format with transaction support"""
+        imported_count = 0
+        skipped_count = 0
+        
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                conn.execute("BEGIN TRANSACTION")
+                
+                try:
+                    for kb_id, entry in legacy_data.items():
+                        try:
+                            category = entry.get("category", "general")
+                            title = entry.get("title", "")
+                            data = entry.get("data", {})
+                            data_json = json.dumps(data, ensure_ascii=False)
+                            keywords = self._extract_keywords(data)
+                            full_text = self._generate_full_text(data)
+                            created_at = entry.get("created_at", format_timestamp())
+                            updated_at = entry.get("updated_at", format_timestamp())
+                            
+                            cursor.execute('INSERT OR IGNORE INTO knowledge (id, category, title, data, keywords, full_text, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                                (kb_id, category, title, data_json, keywords, full_text, created_at, updated_at))
+                            
+                            if cursor.rowcount > 0:
+                                imported_count += 1
+                            else:
+                                skipped_count += 1
+                        
+                        except Exception as e:
+                            logger.warning(f"Skipping entry {kb_id} due to error: {e}")
+                            skipped_count += 1
+                            continue
+                    
+                    conn.commit()
+                    logger.info(f"Legacy data import completed: {imported_count} imported, {skipped_count} skipped")
+                    
+                    return {
+                        "success": True,
+                        "imported": imported_count,
+                        "skipped": skipped_count,
+                        "message": f"Successfully imported {imported_count} entries"
+                    }
+                
+                except Exception as e:
+                    conn.rollback()
+                    logger.error(f"Failed to import legacy data, rolled back: {e}")
+                    return {
+                        "success": False,
+                        "imported": imported_count,
+                        "skipped": skipped_count,
+                        "message": f"Migration failed: {str(e)}"
+                    }
+                    
+        except Exception as e:
+            logger.error(f"Database connection error during legacy import: {e}")
+            return {
+                "success": False,
+                "imported": 0,
+                "skipped": 0,
+                "message": f"Database error: {str(e)}"
+            }
     
     def _extract_keywords(self, data: Dict[str, Any]) -> str:
         """Extract keywords from knowledge entry for search"""
@@ -154,6 +274,62 @@ class KnowledgeBase:
         
         return ",".join(keywords[:50])
     
+    def _generate_full_text(self, data: Dict[str, Any]) -> str:
+        """Generate full text content for TF-IDF indexing"""
+        texts = []
+        
+        def extract_text(obj):
+            if isinstance(obj, str):
+                texts.append(obj)
+            elif isinstance(obj, dict):
+                for value in obj.values():
+                    extract_text(value)
+            elif isinstance(obj, list):
+                for item in obj:
+                    extract_text(item)
+        
+        extract_text(data)
+        return " ".join(texts)
+    
+    def _ensure_tfidf_index(self):
+        """Build or refresh TF-IDF index"""
+        if not TF_IDF_AVAILABLE:
+            return
+        
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute('SELECT id, full_text FROM knowledge')
+                rows = cursor.fetchall()
+                
+                if not rows:
+                    self._tfidf_vectorizer = None
+                    self._tfidf_matrix = None
+                    self._document_ids = []
+                    return
+                
+                documents = [row['full_text'] for row in rows]
+                self._document_ids = [row['id'] for row in rows]
+                
+                def tokenize(text):
+                    return jieba.lcut(text)
+                
+                self._tfidf_vectorizer = TfidfVectorizer(
+                    tokenizer=tokenize,
+                    stop_words=None,
+                    max_features=5000,
+                    ngram_range=(1, 2)
+                )
+                self._tfidf_matrix = self._tfidf_vectorizer.fit_transform(documents)
+                
+                logger.debug(f"TF-IDF index built with {len(documents)} documents")
+                
+        except Exception as e:
+            logger.error(f"Failed to build TF-IDF index: {e}")
+            self._tfidf_vectorizer = None
+            self._tfidf_matrix = None
+    
     def import_knowledge(self, knowledge_data: Dict[str, Any], 
                         category: str = "general") -> Dict[str, Any]:
         """
@@ -167,10 +343,11 @@ class KnowledgeBase:
             Import result with status and details
         """
         try:
-            knowledge_id = f"kb_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            knowledge_id = f"kb_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
             title = knowledge_data.get("title", knowledge_data.get("name", ""))
             data_json = json.dumps(knowledge_data, ensure_ascii=False)
             keywords = self._extract_keywords(knowledge_data)
+            full_text = self._generate_full_text(knowledge_data)
             
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -178,10 +355,12 @@ class KnowledgeBase:
                 cursor.execute('INSERT OR IGNORE INTO categories (name, description, created_at) VALUES (?, ?, ?)',
                     (category, "", format_timestamp()))
                 
-                cursor.execute('INSERT INTO knowledge (id, category, title, data, keywords, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                    (knowledge_id, category, title, data_json, keywords, format_timestamp(), format_timestamp()))
+                cursor.execute('INSERT INTO knowledge (id, category, title, data, keywords, full_text, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                    (knowledge_id, category, title, data_json, keywords, full_text, format_timestamp(), format_timestamp()))
                 
                 conn.commit()
+            
+            self._ensure_tfidf_index()
             
             logger.info(f"Knowledge imported successfully: {knowledge_id}")
             return {
@@ -221,9 +400,91 @@ class KnowledgeBase:
             raise KnowledgeBaseException(f"Failed to import from file: {e}")
     
     def query_knowledge(self, query: str, category: Optional[str] = None, 
-                       limit: int = 5) -> List[Dict[str, Any]]:
+                       limit: int = 5, use_tfidf: bool = True) -> List[Dict[str, Any]]:
         """
-        Query knowledge base
+        Query knowledge base with enhanced search
+        
+        Args:
+            query: Search query string
+            category: Filter by category (optional)
+            limit: Maximum number of results
+            use_tfidf: Use TF-IDF search (default True)
+            
+        Returns:
+            List of matching knowledge entries sorted by relevance
+        """
+        if TF_IDF_AVAILABLE and use_tfidf:
+            return self._query_tfidf(query, category, limit)
+        else:
+            return self._query_basic(query, category, limit)
+    
+    def _query_tfidf(self, query: str, category: Optional[str] = None, 
+                    limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        Query knowledge base using TF-IDF algorithm
+        
+        Args:
+            query: Search query string
+            category: Filter by category (optional)
+            limit: Maximum number of results
+            
+        Returns:
+            List of matching knowledge entries sorted by relevance
+        """
+        self._ensure_tfidf_index()
+        
+        if not self._tfidf_vectorizer or not self._document_ids:
+            return self._query_basic(query, category, limit)
+        
+        try:
+            query_vec = self._tfidf_vectorizer.transform([query])
+            similarities = cosine_similarity(query_vec, self._tfidf_matrix).flatten()
+            
+            ranked_indices = np.argsort(similarities)[::-1]
+            
+            results = []
+            seen_ids = set()
+            
+            for idx in ranked_indices:
+                if len(results) >= limit:
+                    break
+                
+                doc_id = self._document_ids[idx]
+                similarity = float(similarities[idx])
+                
+                if similarity < 0.01:
+                    continue
+                
+                entry = self.get_knowledge_by_id(doc_id)
+                if not entry:
+                    continue
+                
+                if category and entry["category"] != category:
+                    continue
+                
+                if doc_id in seen_ids:
+                    continue
+                
+                seen_ids.add(doc_id)
+                results.append({
+                    "id": entry["id"],
+                    "category": entry["category"],
+                    "title": entry["title"],
+                    "data": entry["data"],
+                    "relevance": round(similarity * 100, 2),
+                    "created_at": entry["created_at"]
+                })
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"TF-IDF query failed: {e}")
+            return self._query_basic(query, category, limit)
+    
+    def _query_basic(self, query: str, category: Optional[str] = None, 
+                    limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        Basic query using string matching (fallback)
         
         Args:
             query: Search query string
@@ -242,22 +503,29 @@ class KnowledgeBase:
                 cursor = conn.cursor()
                 
                 if category:
-                    cursor.execute('SELECT * FROM knowledge WHERE category = ? ORDER BY updated_at DESC LIMIT ?',
-                        (category, limit))
+                    cursor.execute('SELECT * FROM knowledge WHERE category = ?',
+                        (category,))
                 else:
-                    cursor.execute('SELECT * FROM knowledge ORDER BY updated_at DESC LIMIT ?', (limit,))
+                    cursor.execute('SELECT * FROM knowledge')
                 
                 for row in cursor.fetchall():
                     data = json.loads(row['data'])
                     data_str = json.dumps(data, ensure_ascii=False).lower()
+                    full_text = row['full_text'].lower() if row['full_text'] else ""
                     
-                    if query_lower in data_str or query_lower in row['keywords'].lower():
+                    query_words = set(query_lower.split())
+                    content_words = set(data_str.split()) | set(full_text.split())
+                    
+                    has_match = any(word in data_str or word in full_text for word in query_words)
+                    
+                    if has_match:
+                        relevance = self._calculate_relevance(query_lower, data_str + " " + full_text)
                         results.append({
                             "id": row['id'],
                             "category": row['category'],
                             "title": row['title'],
                             "data": data,
-                            "relevance": self._calculate_relevance(query_lower, data_str),
+                            "relevance": round(relevance * 100, 2),
                             "created_at": row['created_at']
                         })
             
@@ -340,18 +608,21 @@ class KnowledgeBase:
         try:
             data_json = json.dumps(new_data, ensure_ascii=False)
             keywords = self._extract_keywords(new_data)
+            full_text = self._generate_full_text(new_data)
             title = new_data.get("title", new_data.get("name", ""))
             
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 
-                cursor.execute('UPDATE knowledge SET data = ?, title = ?, keywords = ?, updated_at = ? WHERE id = ?',
-                    (data_json, title, keywords, format_timestamp(), knowledge_id))
+                cursor.execute('UPDATE knowledge SET data = ?, title = ?, keywords = ?, full_text = ?, updated_at = ? WHERE id = ?',
+                    (data_json, title, keywords, full_text, format_timestamp(), knowledge_id))
                 
                 if cursor.rowcount == 0:
                     raise KnowledgeBaseException(f"Knowledge ID not found: {knowledge_id}")
                 
                 conn.commit()
+            
+            self._ensure_tfidf_index()
             
             logger.info(f"Knowledge updated successfully: {knowledge_id}")
             return {
@@ -387,6 +658,8 @@ class KnowledgeBase:
                 
                 conn.commit()
             
+            self._ensure_tfidf_index()
+            
             logger.info(f"Knowledge deleted successfully: {knowledge_id}")
             return {
                 "success": True,
@@ -419,7 +692,8 @@ class KnowledgeBase:
                     "total_entries": total_entries,
                     "categories": categories,
                     "category_count": category_count,
-                    "last_updated": format_timestamp()
+                    "last_updated": format_timestamp(),
+                    "tfidf_available": TF_IDF_AVAILABLE
                 }
                 
         except Exception as e:
@@ -428,7 +702,8 @@ class KnowledgeBase:
                 "total_entries": 0,
                 "categories": {},
                 "category_count": 0,
-                "last_updated": format_timestamp()
+                "last_updated": format_timestamp(),
+                "tfidf_available": TF_IDF_AVAILABLE
             }
     
     def export_knowledge(self, output_path: str) -> Dict[str, Any]:
@@ -542,3 +817,12 @@ class KnowledgeBase:
         except Exception as e:
             logger.error(f"Failed to get category info: {e}")
             return None
+    
+    def refresh_search_index(self):
+        """Refresh the TF-IDF search index"""
+        self._ensure_tfidf_index()
+        return {
+            "success": True,
+            "message": "Search index refreshed",
+            "tfidf_available": TF_IDF_AVAILABLE
+        }
