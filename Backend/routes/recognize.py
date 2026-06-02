@@ -12,6 +12,7 @@ recognize_bp = Blueprint('recognize', __name__)
 MODEL_AVAILABLE = False
 try:
     import torch
+    import torch.nn as nn
     import torchvision.transforms as transforms
     from torchvision import models
     from PIL import Image
@@ -20,25 +21,49 @@ except Exception as e:
     print(f"Model loading failed: {e}")
 
 class_names = [
-    "阿比西尼亚猫", "埃及猫", "豹猫", "布偶猫", "波斯猫", "缅甸猫",
-    "俄罗斯蓝猫", "孟买猫", "缅因猫", "无毛猫", "暹罗猫", "英国短毛猫",
     "中华田园犬", "吉娃娃", "哈士奇", "德牧", "拉布拉多", "杜宾",
-    "柴犬", "法国斗牛", "萨摩耶", "藏獒", "金毛"
+    "柴犬", "法国斗牛", "萨摩耶", "藏獒", "金毛",
+    "阿比西尼亚猫", "埃及猫", "豹猫", "布偶猫", "波斯猫", "缅甸猫",
+    "俄罗斯蓝猫", "孟买猫", "缅因猫", "无毛猫", "暹罗猫", "英国短毛猫"
 ]
+
+def create_model(num_classes):
+    """Create model with same architecture as training"""
+    model = models.efficientnet_b3(weights=None)
+    num_features = model.classifier[1].in_features
+    model.classifier = nn.Sequential(
+        nn.Dropout(p=0.3, inplace=True),
+        nn.Linear(num_features, 512),
+        nn.ReLU(inplace=True),
+        nn.Dropout(p=0.2),
+        nn.Linear(512, num_classes)
+    )
+    return model
 
 def load_model():
     """Load the pet recognition model"""
     try:
-        model = models.efficientnet_b3(pretrained=False)
-        model.classifier[1] = torch.nn.Linear(model.classifier[1].in_features, len(class_names))
+        model = create_model(len(class_names))
         
         if os.path.exists(Config.MODEL_PATH):
-            model.load_state_dict(torch.load(Config.MODEL_PATH, map_location='cpu'))
+            checkpoint = torch.load(Config.MODEL_PATH, map_location='cpu')
+            # 检查是否是完整的检查点（包含 model_state_dict）
+            if 'model_state_dict' in checkpoint:
+                model.load_state_dict(checkpoint['model_state_dict'])
+                print(f"Model loaded from checkpoint (epoch {checkpoint.get('epoch', 'unknown')}, val_acc: {checkpoint.get('val_acc', 'unknown')})")
+            else:
+                model.load_state_dict(checkpoint)
+                print("Model loaded from state_dict")
             model.eval()
+            print("Model loaded successfully")
             return model
-        return None
+        else:
+            print(f"Model file not found: {Config.MODEL_PATH}")
+            return None
     except Exception as e:
         print(f"Failed to load model: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 model = load_model() if MODEL_AVAILABLE else None
@@ -47,6 +72,7 @@ def predict_image(image_path):
     """Predict pet breed from image"""
     try:
         if not model:
+            print("Model not loaded")
             return {"breed": "未知", "confidence": 0.0, "category": "unknown", "top5": []}
 
         transform = transforms.Compose([
@@ -72,11 +98,14 @@ def predict_image(image_path):
 
         breed = class_names[top5_indices[0][0].item()]
         confidence = round(top5_probs[0][0].item(), 4)
-        category = "cat" if class_names.index(breed) < 12 else "dog"
+        category = "dog" if class_names.index(breed) < 11 else "cat"
 
+        print(f"Prediction: {breed}, Confidence: {confidence}")
         return {"breed": breed, "confidence": confidence, "category": category, "top5": top5}
     except Exception as e:
         print(f"Prediction failed: {e}")
+        import traceback
+        traceback.print_exc()
         return {"breed": "未知", "confidence": 0.0, "category": "unknown", "top5": []}
 
 @recognize_bp.route('/recognize', methods=['POST'])
@@ -98,6 +127,8 @@ def recognize():
         filename = f"{uuid.uuid4().hex}.jpg"
         filepath = os.path.join(Config.UPLOAD_FOLDER, filename)
         file.save(filepath)
+        
+        print(f"Image saved to: {filepath}")
 
         result = predict_image(filepath)
 
@@ -124,6 +155,9 @@ def recognize():
             "model_available": MODEL_AVAILABLE
         })
     except Exception as e:
+        print(f"Recognize error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @recognize_bp.route('/recognize/base64', methods=['POST'])
@@ -170,6 +204,9 @@ def recognize_base64():
             "model_available": MODEL_AVAILABLE
         })
     except Exception as e:
+        print(f"Recognize base64 error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @recognize_bp.route('/recognize/history', methods=['GET'])
@@ -250,7 +287,7 @@ def model_status():
     try:
         return jsonify({
             "success": True,
-            "model_available": MODEL_AVAILABLE,
+            "model_available": MODEL_AVAILABLE and model is not None,
             "model_path": Config.MODEL_PATH,
             "model_exists": os.path.exists(Config.MODEL_PATH),
             "num_classes": len(class_names),

@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 from flask import Flask
+from flask_cors import CORS
 from config import Config
 from models.db import init_db
 from routes.auth import auth_bp
@@ -15,6 +16,9 @@ from routes.other import other_bp
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# 启用 CORS，支持前端跨域访问
+CORS(app, supports_credentials=True, origins=["http://localhost:3000", "http://127.0.0.1:3000"])
 
 app.secret_key = os.urandom(24)
 
