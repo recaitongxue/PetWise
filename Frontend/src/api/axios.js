@@ -1,16 +1,16 @@
 import axios from 'axios'
-import { useStore } from '../store'
 
 const instance = axios.create({
   baseURL: '/api',
-  timeout: 30000
+  timeout: 30000,
+  withCredentials: true
 })
 
 instance.interceptors.request.use(
   config => {
-    const { state } = useStore()
-    if (state.token) {
-      config.headers.Authorization = state.token
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = token
     }
     return config
   },
@@ -24,9 +24,9 @@ instance.interceptors.response.use(
     return response.data
   },
   error => {
-    const { logout } = useStore()
     if (error.response && error.response.status === 401) {
-      logout()
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
       window.location.href = '/login'
     }
     return Promise.reject(error)

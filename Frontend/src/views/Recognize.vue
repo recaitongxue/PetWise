@@ -9,7 +9,7 @@
         <div class="upload-section">
           <div 
             class="upload-area" 
-            :class="{ dragging: isDragging }"
+            :class="{ dragging: isDragging, hasImage: selectedFile }"
             @dragenter.prevent="isDragging = true"
             @dragleave.prevent="isDragging = false"
             @dragover.prevent
@@ -23,9 +23,21 @@
               class="file-input"
               @change="handleFileSelect"
             />
-            <div class="upload-icon">📷</div>
-            <p>{{ selectedFile ? selectedFile.name : '点击或拖拽上传图片' }}</p>
-            <p class="hint">支持 JPG、PNG 格式</p>
+            
+            <!-- 图片预览 -->
+            <div v-if="imagePreview" class="image-preview">
+              <img :src="imagePreview" alt="预览图片" class="preview-image" />
+              <div class="preview-overlay">
+                <span class="change-text">点击更换图片</span>
+              </div>
+            </div>
+            
+            <!-- 默认上传提示 -->
+            <div v-else class="upload-hint">
+              <div class="upload-icon">📷</div>
+              <p>{{ selectedFile ? selectedFile.name : '点击或拖拽上传图片' }}</p>
+              <p class="hint">支持 JPG、PNG 格式</p>
+            </div>
           </div>
           
           <div class="upload-actions">
@@ -39,6 +51,12 @@
           <h3>识别结果</h3>
           
           <div class="result-card">
+            <!-- 原始图片展示 -->
+            <div class="original-image-section">
+              <h4>原始图片</h4>
+              <img :src="imagePreview" alt="原始图片" class="original-image" />
+            </div>
+            
             <div class="result-header">
               <div class="breed-icon">🐾</div>
               <div class="breed-name">{{ result.breed }}</div>
@@ -138,6 +156,7 @@ import { favoritesAPI } from '@/api/favorites'
 const fileInput = ref(null)
 const isDragging = ref(false)
 const selectedFile = ref(null)
+const imagePreview = ref(null)
 const recognizing = ref(false)
 const result = ref(null)
 const breedInfo = ref(null)
@@ -151,6 +170,12 @@ const handleFileSelect = (event) => {
   const file = event.target.files[0]
   if (file) {
     selectedFile.value = file
+    // 生成图片预览
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      imagePreview.value = e.target.result
+    }
+    reader.readAsDataURL(file)
   }
 }
 
@@ -159,6 +184,12 @@ const handleDrop = (event) => {
   const file = event.dataTransfer.files[0]
   if (file && file.type.startsWith('image/')) {
     selectedFile.value = file
+    // 生成图片预览
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      imagePreview.value = e.target.result
+    }
+    reader.readAsDataURL(file)
   }
 }
 
@@ -275,6 +306,7 @@ onMounted(() => {
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
+  position: relative;
 }
 
 .upload-area.dragging {
@@ -282,8 +314,57 @@ onMounted(() => {
   background: #f0f4ff;
 }
 
+.upload-area.hasImage {
+  border-style: solid;
+  border-color: #667eea;
+}
+
 .file-input {
   display: none;
+}
+
+.image-preview {
+  position: relative;
+  max-width: 100%;
+  max-height: 400px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.preview-image {
+  width: 100%;
+  height: auto;
+  max-height: 400px;
+  object-fit: contain;
+}
+
+.preview-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.upload-area:hover .preview-overlay {
+  opacity: 1;
+}
+
+.change-text {
+  color: white;
+  font-size: 16px;
+}
+
+.upload-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .upload-icon {
@@ -329,6 +410,24 @@ onMounted(() => {
   padding: 20px;
   color: white;
   margin-bottom: 20px;
+}
+
+.original-image-section {
+  margin-bottom: 20px;
+}
+
+.original-image-section h4 {
+  margin-bottom: 10px;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.original-image {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .result-header {
@@ -453,10 +552,12 @@ onMounted(() => {
 .history-info {
   display: flex;
   flex-direction: column;
+  gap: 5px;
 }
 
 .history-breed {
   font-weight: 600;
+  color: #333;
 }
 
 .history-time {
@@ -465,22 +566,22 @@ onMounted(() => {
 }
 
 .delete-btn {
-  background: #fff2f0;
-  border: none;
   padding: 6px 12px;
-  border-radius: 6px;
-  color: #f56c6c;
+  background: #ff4d4f;
+  color: white;
+  border: none;
+  border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
 }
 
 .delete-btn:hover {
-  background: #ffccc7;
+  background: #ff7875;
 }
 
 .empty-history {
   text-align: center;
-  padding: 30px;
+  padding: 40px;
   color: #999;
 }
 </style>

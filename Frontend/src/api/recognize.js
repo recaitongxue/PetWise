@@ -2,9 +2,7 @@ import axios from './axios'
 
 export const recognizeAPI = {
   recognize(formData) {
-    return axios.post('/recognize', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
+    return axios.post('/recognize', formData)
   },
   recognizeBase64(data) {
     return axios.post('/recognize/base64', data)
