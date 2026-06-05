@@ -450,3 +450,187 @@ def get_camera_sessions():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@recognize_bp.route('/recognize/batch', methods=['POST'])
+def recognize_batch():
+    """批量识别接口"""
+    if 'user_id' not in session:
+        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
+
+    if 'images' not in request.files:
+        return jsonify({"error": "No images provided"}), 400
+
+    files = request.files.getlist('images')
+    if len(files) == 0:
+        return jsonify({"error": "No images selected"}), 400
+
+    if len(files) > 10:
+        return jsonify({"error": "Maximum 10 images per batch"}), 400
+
+    try:
+        results = []
+        user_id = session['user_id']
+        db = get_db()
+
+        for idx, file in enumerate(files):
+            if not allowed_file(file.filename, Config.ALLOWED_EXTENSIONS):
+                results.append({
+                    "index": idx,
+                    "filename": file.filename,
+                    "error": "Invalid file type"
+                })
+                continue
+
+            filename = f"batch_{uuid.uuid4().hex}.jpg"
+            filepath = os.path.join(Config.UPLOAD_FOLDER, filename)
+            file.save(filepath)
+
+            result = predict_image(filepath)
+
+            db.execute('''
+                INSERT INTO recognitions (user_id, image_path, result, confidence, breed, top5)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (user_id, filepath, result['breed'], result['confidence'], result['breed'], json.dumps(result['top5'])))
+            
+            db.execute('UPDATE breed_info SET views = views + 1 WHERE breed = ?', (result['breed'],))
+
+            results.append({
+                "index": idx,
+                "filename": file.filename,
+                "success": True,
+                "result": result
+            })
+
+            # 收集低置信度样本
+            if result['confidence'] < 0.5:
+                db.execute('''
+                    INSERT INTO hard_examples (user_id, image_path, predicted_breed, confidence, is_low_confidence, collected_reason, status)
+                    VALUES (?, ?, ?, ?, 1, ?, 'pending')
+                ''', (user_id, filepath, result['breed'], result['confidence'], 'low_confidence'))
+
+        db.commit()
+
+        log_action(db, user_id, 'recognize_batch', {'count': len(files), 'success_count': len([r for r in results if r.get('success')])})
+
+        return jsonify({
+            "success": True,
+            "results": results,
+            "total": len(files),
+            "success_count": len([r for r in results if r.get('success')])
+        })
+    except Exception as e:
+        print(f"Batch recognition error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@recognize_bp.route('/recognize/correct', methods=['POST'])
+def correct_recognition():
+    """用户纠错接口"""
+    if 'user_id' not in session:
+        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
+
+    try:
+        data = request.get_json()
+        recognition_id = data.get('recognition_id')
+        corrected_breed = data.get('corrected_breed')
+        reason = data.get('reason', '')
+
+        if not recognition_id or not corrected_breed:
+            return jsonify({"error": "recognition_id and corrected_breed are required"}), 400
+
+        user_id = session['user_id']
+        db = get_db()
+
+        recognition = db.execute('SELECT * FROM recognitions WHERE id = ? AND user_id = ?', (recognition_id, user_id)).fetchone()
+        if not recognition:
+            return jsonify({"error": "Recognition not found"}), 404
+
+        # 创建纠错记录
+        db.execute('''
+            INSERT INTO corrections (recognition_id, user_id, original_breed, corrected_breed, confidence, reason, status)
+            VALUES (?, ?, ?, ?, ?, ?, 'pending')
+        ''', (recognition_id, user_id, recognition['breed'], corrected_breed, recognition['confidence'], reason))
+
+        # 收集到难样本
+        db.execute('''
+            INSERT INTO hard_examples (recognition_id, user_id, image_path, predicted_breed, confidence, is_user_corrected, corrected_breed, collected_reason, status)
+            VALUES (?, ?, ?, ?, ?, 1, ?, ?, 'pending')
+        ''', (recognition_id, user_id, recognition['image_path'], recognition['breed'], recognition['confidence'], corrected_breed, 'user_correction'))
+
+        db.commit()
+
+        log_action(db, user_id, 'correct_recognition', {
+            'recognition_id': recognition_id,
+            'original_breed': recognition['breed'],
+            'corrected_breed': corrected_breed
+        })
+
+        return jsonify({
+            "success": True,
+            "message": "Correction submitted successfully",
+            "correction_id": db.lastrowid
+        })
+    except Exception as e:
+        print(f"Correction error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@recognize_bp.route('/recognize/corrections', methods=['GET'])
+def get_corrections():
+    """获取用户纠错记录"""
+    if 'user_id' not in session:
+        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
+
+    try:
+        user_id = session['user_id']
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 10))
+        status = request.args.get('status', 'all')
+        offset = (page - 1) * per_page
+
+        db = get_db()
+
+        query = '''
+            SELECT c.*, r.image_path, r.confidence as original_confidence
+            FROM corrections c
+            LEFT JOIN recognitions r ON c.recognition_id = r.id
+            WHERE c.user_id = ?
+        '''
+        params = [user_id]
+
+        if status != 'all':
+            query += ' AND c.status = ?'
+            params.append(status)
+
+        query += ' ORDER BY c.created_at DESC LIMIT ? OFFSET ?'
+        params.extend([per_page, offset])
+
+        corrections = db.execute(query, params).fetchall()
+
+        total_query = '''
+            SELECT COUNT(*)
+            FROM corrections
+            WHERE user_id = ?
+        '''
+        total_params = [user_id]
+
+        if status != 'all':
+            total_query += ' AND status = ?'
+            total_params.append(status)
+
+        total = db.execute(total_query, total_params).fetchone()[0]
+
+        return jsonify({
+            "success": True,
+            "data": [dict(c) for c in corrections],
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

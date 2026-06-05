@@ -2,6 +2,8 @@ import os
 import hashlib
 import uuid
 import json
+from functools import wraps
+from flask import jsonify, session
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -21,3 +23,12 @@ def log_action(db, user_id, action, details=None, ip_address=None):
         (user_id, action, json.dumps(details) if details else None, ip_address)
     )
     db.commit()
+
+def admin_required(f):
+    """管理员权限装饰器"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session or session.get('role') != 'admin':
+            return jsonify({"error": "Admin permission required", "code": "ADMIN_REQUIRED"}), 403
+        return f(*args, **kwargs)
+    return decorated_function

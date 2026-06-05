@@ -13,6 +13,10 @@ from routes.favorites import favorites_bp
 from routes.comments import comments_bp
 from routes.admin import admin_bp
 from routes.other import other_bp
+from routes.health import health_bp
+from routes.schedule import schedule_bp
+from routes.model_admin import model_admin_bp
+from routes.sample_admin import sample_admin_bp
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -30,6 +34,10 @@ app.register_blueprint(favorites_bp, url_prefix='/api')
 app.register_blueprint(comments_bp, url_prefix='/api')
 app.register_blueprint(admin_bp, url_prefix='/api')
 app.register_blueprint(other_bp, url_prefix='/api')
+app.register_blueprint(health_bp, url_prefix='/api')
+app.register_blueprint(schedule_bp, url_prefix='/api')
+app.register_blueprint(model_admin_bp, url_prefix='/api')
+app.register_blueprint(sample_admin_bp, url_prefix='/api')
 
 def start_ai_agent():
     """启动AI智能体服务"""

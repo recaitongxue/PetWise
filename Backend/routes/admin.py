@@ -1,16 +1,8 @@
 from flask import Blueprint, request, jsonify, session
 from models.db import get_db
-from utils import log_action
+from utils import log_action, admin_required
 
 admin_bp = Blueprint('admin', __name__)
-
-def admin_required(f):
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session or session.get('role') != 'admin':
-            return jsonify({"error": "Admin permission required", "code": "ADMIN_REQUIRED"}), 403
-        return f(*args, **kwargs)
-    decorated_function.__name__ = f.__name__
-    return decorated_function
 
 @admin_bp.route('/admin/users', methods=['GET'])
 @admin_required

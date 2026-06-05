@@ -176,6 +176,156 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_llm_models_active ON llm_models(is_active);
         CREATE INDEX IF NOT EXISTS idx_knowledge_category ON knowledge_base(category);
         CREATE INDEX IF NOT EXISTS idx_knowledge_active ON knowledge_base(is_active);
+
+        -- 新增表：用户纠错记录
+        CREATE TABLE IF NOT EXISTS corrections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recognition_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            original_breed TEXT NOT NULL,
+            corrected_breed TEXT NOT NULL,
+            confidence REAL,
+            reason TEXT,
+            status TEXT DEFAULT 'pending',
+            reviewed_by INTEGER,
+            reviewed_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (recognition_id) REFERENCES recognitions(id),
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (reviewed_by) REFERENCES users(id)
+        );
+
+        -- 新增表：难样本收集
+        CREATE TABLE IF NOT EXISTS hard_examples (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recognition_id INTEGER,
+            user_id INTEGER,
+            image_path TEXT NOT NULL,
+            predicted_breed TEXT NOT NULL,
+            confidence REAL,
+            is_low_confidence INTEGER DEFAULT 0,
+            is_user_corrected INTEGER DEFAULT 0,
+            corrected_breed TEXT,
+            collected_reason TEXT,
+            status TEXT DEFAULT 'pending',
+            reviewed_by INTEGER,
+            reviewed_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (recognition_id) REFERENCES recognitions(id),
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (reviewed_by) REFERENCES users(id)
+        );
+
+        -- 新增表：模型版本管理
+        CREATE TABLE IF NOT EXISTS model_versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            version TEXT UNIQUE NOT NULL,
+            model_path TEXT NOT NULL,
+            framework TEXT DEFAULT 'PyTorch',
+            num_classes INTEGER DEFAULT 23,
+            training_accuracy REAL,
+            validation_accuracy REAL,
+            top1_accuracy REAL,
+            top5_accuracy REAL,
+            is_active INTEGER DEFAULT 0,
+            is_loaded INTEGER DEFAULT 0,
+            description TEXT,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        );
+
+        -- 新增表：宠物健康记录
+        CREATE TABLE IF NOT EXISTS health_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pet_id INTEGER NOT NULL,
+            record_type TEXT NOT NULL,
+            record_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            weight REAL,
+            food_amount REAL,
+            food_type TEXT,
+            stool_status TEXT,
+            activity_level TEXT,
+            mood TEXT,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (pet_id) REFERENCES pets(id)
+        );
+
+        -- 新增表：智能日程提醒
+        CREATE TABLE IF NOT EXISTS schedule_reminders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pet_id INTEGER NOT NULL,
+            reminder_type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            scheduled_date DATE NOT NULL,
+            is_completed INTEGER DEFAULT 0,
+            completed_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (pet_id) REFERENCES pets(id)
+        );
+
+        -- 新增表：Prompt版本管理
+        CREATE TABLE IF NOT EXISTS prompt_versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            prompt_type TEXT NOT NULL,
+            version TEXT NOT NULL,
+            content TEXT NOT NULL,
+            is_active INTEGER DEFAULT 0,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users(id),
+            UNIQUE(prompt_type, version)
+        );
+
+        -- 新增表：用户限流记录
+        CREATE TABLE IF NOT EXISTS rate_limits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            endpoint TEXT NOT NULL,
+            request_count INTEGER DEFAULT 0,
+            reset_time TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            UNIQUE(user_id, endpoint)
+        );
+
+        -- 新增表：系统监控指标
+        CREATE TABLE IF NOT EXISTS system_metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            metric_type TEXT NOT NULL,
+            metric_name TEXT NOT NULL,
+            metric_value REAL NOT NULL,
+            unit TEXT,
+            recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- 新增表：评论点赞
+        CREATE TABLE IF NOT EXISTS comment_likes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            comment_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (comment_id) REFERENCES comments(id),
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            UNIQUE(comment_id, user_id)
+        );
+
+        -- 创建索引
+        CREATE INDEX IF NOT EXISTS idx_corrections_user ON corrections(user_id);
+        CREATE INDEX IF NOT EXISTS idx_corrections_status ON corrections(status);
+        CREATE INDEX IF NOT EXISTS idx_hard_examples_status ON hard_examples(status);
+        CREATE INDEX IF NOT EXISTS idx_hard_examples_collected ON hard_examples(is_low_confidence, is_user_corrected);
+        CREATE INDEX IF NOT EXISTS idx_model_versions_active ON model_versions(is_active);
+        CREATE INDEX IF NOT EXISTS idx_health_records_pet ON health_records(pet_id);
+        CREATE INDEX IF NOT EXISTS idx_health_records_date ON health_records(record_date);
+        CREATE INDEX IF NOT EXISTS idx_schedule_reminders_pet ON schedule_reminders(pet_id);
+        CREATE INDEX IF NOT EXISTS idx_schedule_reminders_date ON schedule_reminders(scheduled_date);
+        CREATE INDEX IF NOT EXISTS idx_prompt_versions_active ON prompt_versions(prompt_type, is_active);
+        CREATE INDEX IF NOT EXISTS idx_rate_limits_user ON rate_limits(user_id, endpoint);
+        CREATE INDEX IF NOT EXISTS idx_system_metrics_type ON system_metrics(metric_type, recorded_at);
     ''')
 
     if cursor.execute('SELECT COUNT(*) FROM breed_info').fetchone()[0] == 0:
