@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 from flask import Flask
+from flask_cors import CORS
 from config import Config
 from models.db import init_db
 from routes.auth import auth_bp
@@ -12,9 +13,16 @@ from routes.favorites import favorites_bp
 from routes.comments import comments_bp
 from routes.admin import admin_bp
 from routes.other import other_bp
+from routes.health import health_bp
+from routes.schedule import schedule_bp
+from routes.model_admin import model_admin_bp
+from routes.sample_admin import sample_admin_bp
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# 启用 CORS，支持前端跨域访问
+CORS(app, supports_credentials=True, origins=["http://localhost:3000", "http://127.0.0.1:3000"])
 
 app.secret_key = os.urandom(24)
 
@@ -26,6 +34,10 @@ app.register_blueprint(favorites_bp, url_prefix='/api')
 app.register_blueprint(comments_bp, url_prefix='/api')
 app.register_blueprint(admin_bp, url_prefix='/api')
 app.register_blueprint(other_bp, url_prefix='/api')
+app.register_blueprint(health_bp, url_prefix='/api')
+app.register_blueprint(schedule_bp, url_prefix='/api')
+app.register_blueprint(model_admin_bp, url_prefix='/api')
+app.register_blueprint(sample_admin_bp, url_prefix='/api')
 
 def start_ai_agent():
     """启动AI智能体服务"""

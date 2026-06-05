@@ -42,6 +42,8 @@ PetWise API v4.0 是一个功能完善的宠物服务平台后端系统，包含
 | system_logs | 系统日志表 |
 | announcements | 公告表 |
 | feedback | 用户反馈表 |
+| llm_models | 大模型配置表 |
+| knowledge_base | 知识库表 |
 
 ---
 
@@ -80,12 +82,16 @@ Authorization: <token>
 | GET | `/api/auth/profile` | ✅ | 获取个人信息 |
 | PUT | `/api/auth/profile` | ✅ | 更新个人信息 |
 
-### 宠物识别 (6个)
+### 宠物识别 (10个)
 
 | 方法 | 路径 | 认证 | 描述 |
 |------|------|------|------|
 | POST | `/api/recognize` | ✅ | 识别宠物品种（文件上传） |
 | POST | `/api/recognize/base64` | ✅ | 识别宠物品种（Base64） |
+| POST | `/api/recognize/camera` | ✅ | 摄像头识别（单帧） |
+| POST | `/api/recognize/camera/stream` | ✅ | 摄像头批量识别 |
+| GET | `/api/recognize/camera/session/{session_id}` | ✅ | 获取摄像头会话记录 |
+| GET | `/api/recognize/camera/sessions` | ✅ | 获取摄像头会话列表 |
 | GET | `/api/recognize/history` | ✅ | 识别历史记录 |
 | DELETE | `/api/recognize/history/{id}` | ✅ | 删除识别记录 |
 | GET | `/api/classes` | ❌ | 获取所有宠物类别 |
@@ -132,7 +138,7 @@ Authorization: <token>
 | POST | `/api/feedback` | ✅ | 提交反馈 |
 | GET | `/api/health_check` | ❌ | 服务健康检查 |
 
-### 管理员接口 (9个)
+### 管理员接口 (20个)
 
 | 方法 | 路径 | 认证 | 描述 |
 |------|------|------|------|
@@ -145,6 +151,16 @@ Authorization: <token>
 | GET | `/api/admin/feedback` | ✅Admin | 用户反馈 |
 | PUT | `/api/admin/feedback/{id}` | ✅Admin | 回复反馈 |
 | PUT | `/api/admin/breeds/{breed}` | ✅Admin | 更新品种信息 |
+| GET | `/api/admin/models` | ✅Admin | 获取大模型列表 |
+| POST | `/api/admin/models` | ✅Admin | 添加大模型 |
+| PUT | `/api/admin/models/{id}` | ✅Admin | 更新大模型 |
+| DELETE | `/api/admin/models/{id}` | ✅Admin | 删除大模型 |
+| POST | `/api/admin/models/default/{id}` | ✅Admin | 设置默认模型 |
+| GET | `/api/admin/knowledge` | ✅Admin | 获取知识库列表 |
+| POST | `/api/admin/knowledge` | ✅Admin | 添加知识库 |
+| PUT | `/api/admin/knowledge/{id}` | ✅Admin | 更新知识库 |
+| DELETE | `/api/admin/knowledge/{id}` | ✅Admin | 删除知识库 |
+| GET | `/api/admin/knowledge/categories` | ✅Admin | 获取知识库分类 |
 
 ---
 
@@ -660,3 +676,155 @@ python main.py
 ## 默认管理员
 
 注册用户名为 `admin` 的账号将自动设置为管理员角色。
+
+---
+
+## 13. 摄像头识别
+
+### 13.1 摄像头单帧识别
+
+```http
+POST /api/recognize/camera
+Authorization: <token>
+Content-Type: application/json
+
+{
+  "image_base64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQE...",
+  "session_id": "camera_session_001"
+}
+```
+
+**响应**:
+```json
+{
+  "success": true,
+  "result": {
+    "breed": "柴犬",
+    "confidence": 0.9876,
+    "category": "dog",
+    "top5": [...]
+  },
+  "breed_info": {...},
+  "model_available": true,
+  "session_id": "camera_session_001"
+}
+```
+
+### 13.2 摄像头批量识别
+
+```http
+POST /api/recognize/camera/stream
+Authorization: <token>
+Content-Type: application/json
+
+{
+  "images": ["base64_image_1", "base64_image_2", "base64_image_3"],
+  "session_id": "camera_session_001"
+}
+```
+
+---
+
+## 14. 大模型管理（管理员）
+
+### 14.1 获取大模型列表
+
+```http
+GET /api/admin/models
+Authorization: <admin_token>
+```
+
+### 14.2 添加大模型
+
+```http
+POST /api/admin/models
+Authorization: <admin_token>
+Content-Type: application/json
+
+{
+  "name": "DeepSeek-V3",
+  "provider": "siliconflow",
+  "api_key": "sk-xxx",
+  "base_url": "https://api.siliconflow.cn/v1",
+  "model_name": "deepseek-ai/DeepSeek-V3",
+  "max_tokens": 4096,
+  "temperature": 0.7,
+  "top_p": 0.9,
+  "is_active": 1,
+  "is_default": 1,
+  "description": "强大的开源大模型"
+}
+```
+
+### 14.3 设置默认模型
+
+```http
+POST /api/admin/models/default/1
+Authorization: <admin_token>
+```
+
+---
+
+## 15. 知识库管理（管理员）
+
+### 15.1 获取知识库列表
+
+```http
+GET /api/admin/knowledge?page=1&per_page=20&category=health
+Authorization: <admin_token>
+```
+
+### 15.2 添加知识库
+
+```http
+POST /api/admin/knowledge
+Authorization: <admin_token>
+Content-Type: application/json
+
+{
+  "title": "猫咪常见疾病预防",
+  "content": "猫咪常见疾病包括...",
+  "category": "health",
+  "tags": "猫咪,疾病,预防",
+  "source": "专业兽医"
+}
+```
+
+### 15.3 更新知识库
+
+```http
+PUT /api/admin/knowledge/1
+Authorization: <admin_token>
+Content-Type: application/json
+
+{
+  "title": "更新后的标题",
+  "content": "更新后的内容"
+}
+```
+
+### 15.4 删除知识库
+
+```http
+DELETE /api/admin/knowledge/1
+Authorization: <admin_token>
+```
+
+### 15.5 获取知识库分类统计
+
+```http
+GET /api/admin/knowledge/categories
+Authorization: <admin_token>
+```
+
+**响应**:
+```json
+{
+  "success": true,
+  "data": [
+    {"category": "health", "count": 15},
+    {"category": "feeding", "count": 10},
+    {"category": "training", "count": 8}
+  ]
+}
+```

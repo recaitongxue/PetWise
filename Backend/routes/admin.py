@@ -1,16 +1,8 @@
 from flask import Blueprint, request, jsonify, session
 from models.db import get_db
-from utils import log_action
+from utils import log_action, admin_required
 
 admin_bp = Blueprint('admin', __name__)
-
-def admin_required(f):
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session or session.get('role') != 'admin':
-            return jsonify({"error": "Admin permission required", "code": "ADMIN_REQUIRED"}), 403
-        return f(*args, **kwargs)
-    decorated_function.__name__ = f.__name__
-    return decorated_function
 
 @admin_bp.route('/admin/users', methods=['GET'])
 @admin_required
@@ -273,5 +265,271 @@ def update_breed(breed):
         log_action(db, admin_id, 'admin_update_breed', {'breed': breed})
 
         return jsonify({"success": True, "message": "Breed info updated"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/models', methods=['GET'])
+@admin_required
+def get_models():
+    try:
+        db = get_db()
+        models = db.execute('SELECT * FROM llm_models ORDER BY is_default DESC, created_at DESC').fetchall()
+        return jsonify({"success": True, "data": [dict(m) for m in models]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/models', methods=['POST'])
+@admin_required
+def add_model():
+    try:
+        admin_id = session['user_id']
+        data = request.get_json()
+
+        required_fields = ['name', 'provider', 'model_name']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"{field} is required"}), 400
+
+        db = get_db()
+
+        if data.get('is_default', 0) == 1:
+            db.execute('UPDATE llm_models SET is_default = 0 WHERE is_default = 1')
+
+        db.execute('''
+            INSERT INTO llm_models (name, provider, api_key, base_url, model_name, max_tokens, temperature, top_p, is_active, is_default, description, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (
+            data['name'],
+            data['provider'],
+            data.get('api_key'),
+            data.get('base_url'),
+            data['model_name'],
+            data.get('max_tokens', 2048),
+            data.get('temperature', 0.7),
+            data.get('top_p', 0.9),
+            data.get('is_active', 1),
+            data.get('is_default', 0),
+            data.get('description')
+        ))
+        db.commit()
+
+        log_action(db, admin_id, 'admin_add_model', {'name': data['name'], 'provider': data['provider']})
+
+        return jsonify({"success": True, "message": "Model added"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/models/<int:model_id>', methods=['PUT'])
+@admin_required
+def update_model(model_id):
+    try:
+        admin_id = session['user_id']
+        data = request.get_json()
+        db = get_db()
+
+        model = db.execute('SELECT * FROM llm_models WHERE id = ?', (model_id,)).fetchone()
+        if not model:
+            return jsonify({"error": "Model not found"}), 404
+
+        if data.get('is_default', 0) == 1:
+            db.execute('UPDATE llm_models SET is_default = 0 WHERE is_default = 1')
+
+        updates = []
+        params = []
+
+        fields = ['name', 'provider', 'api_key', 'base_url', 'model_name', 'max_tokens', 'temperature', 'top_p', 'is_active', 'is_default', 'description']
+        for field in fields:
+            if field in data:
+                updates.append(f'{field} = ?')
+                params.append(data[field])
+
+        if updates:
+            updates.append('updated_at = CURRENT_TIMESTAMP')
+            params.append(model_id)
+            db.execute(f'UPDATE llm_models SET {", ".join(updates)} WHERE id = ?', params)
+            db.commit()
+
+        log_action(db, admin_id, 'admin_update_model', {'model_id': model_id})
+
+        return jsonify({"success": True, "message": "Model updated"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/models/<int:model_id>', methods=['DELETE'])
+@admin_required
+def delete_model(model_id):
+    try:
+        admin_id = session['user_id']
+        db = get_db()
+
+        model = db.execute('SELECT * FROM llm_models WHERE id = ?', (model_id,)).fetchone()
+        if not model:
+            return jsonify({"error": "Model not found"}), 404
+
+        db.execute('DELETE FROM llm_models WHERE id = ?', (model_id,))
+        db.commit()
+
+        log_action(db, admin_id, 'admin_delete_model', {'model_id': model_id})
+
+        return jsonify({"success": True, "message": "Model deleted"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/models/default/<int:model_id>', methods=['POST'])
+@admin_required
+def set_default_model(model_id):
+    try:
+        admin_id = session['user_id']
+        db = get_db()
+
+        model = db.execute('SELECT * FROM llm_models WHERE id = ?', (model_id,)).fetchone()
+        if not model:
+            return jsonify({"error": "Model not found"}), 404
+
+        db.execute('UPDATE llm_models SET is_default = 0 WHERE is_default = 1')
+        db.execute('UPDATE llm_models SET is_default = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?', (model_id,))
+        db.commit()
+
+        log_action(db, admin_id, 'admin_set_default_model', {'model_id': model_id})
+
+        return jsonify({"success": True, "message": "Default model updated"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/knowledge', methods=['GET'])
+@admin_required
+def get_knowledge():
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+        category = request.args.get('category')
+        offset = (page - 1) * per_page
+
+        db = get_db()
+        query = 'SELECT k.*, u.username as creator FROM knowledge_base k LEFT JOIN users u ON k.created_by = u.id'
+        params = []
+
+        if category:
+            query += ' WHERE category = ?'
+            params.append(category)
+        
+        query += ' ORDER BY k.created_at DESC LIMIT ? OFFSET ?'
+        params.extend([per_page, offset])
+
+        knowledge = db.execute(query, params).fetchall()
+
+        count_query = 'SELECT COUNT(*) FROM knowledge_base'
+        count_params = []
+        if category:
+            count_query += ' WHERE category = ?'
+            count_params.append(category)
+        total = db.execute(count_query, count_params).fetchone()[0]
+
+        return jsonify({
+            "success": True,
+            "data": [dict(k) for k in knowledge],
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/knowledge', methods=['POST'])
+@admin_required
+def add_knowledge():
+    try:
+        admin_id = session['user_id']
+        data = request.get_json()
+
+        required_fields = ['title', 'content']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"{field} is required"}), 400
+
+        db = get_db()
+        db.execute('''
+            INSERT INTO knowledge_base (title, content, category, tags, source, is_active, created_by, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (
+            data['title'],
+            data['content'],
+            data.get('category', 'general'),
+            data.get('tags'),
+            data.get('source'),
+            data.get('is_active', 1),
+            admin_id
+        ))
+        db.commit()
+
+        log_action(db, admin_id, 'admin_add_knowledge', {'title': data['title']})
+
+        return jsonify({"success": True, "message": "Knowledge added"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/knowledge/<int:knowledge_id>', methods=['PUT'])
+@admin_required
+def update_knowledge(knowledge_id):
+    try:
+        admin_id = session['user_id']
+        data = request.get_json()
+        db = get_db()
+
+        knowledge = db.execute('SELECT * FROM knowledge_base WHERE id = ?', (knowledge_id,)).fetchone()
+        if not knowledge:
+            return jsonify({"error": "Knowledge not found"}), 404
+
+        updates = []
+        params = []
+
+        fields = ['title', 'content', 'category', 'tags', 'source', 'is_active']
+        for field in fields:
+            if field in data:
+                updates.append(f'{field} = ?')
+                params.append(data[field])
+
+        if updates:
+            updates.append('updated_at = CURRENT_TIMESTAMP')
+            params.append(knowledge_id)
+            db.execute(f'UPDATE knowledge_base SET {", ".join(updates)} WHERE id = ?', params)
+            db.commit()
+
+        log_action(db, admin_id, 'admin_update_knowledge', {'knowledge_id': knowledge_id})
+
+        return jsonify({"success": True, "message": "Knowledge updated"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/knowledge/<int:knowledge_id>', methods=['DELETE'])
+@admin_required
+def delete_knowledge(knowledge_id):
+    try:
+        admin_id = session['user_id']
+        db = get_db()
+
+        knowledge = db.execute('SELECT * FROM knowledge_base WHERE id = ?', (knowledge_id,)).fetchone()
+        if not knowledge:
+            return jsonify({"error": "Knowledge not found"}), 404
+
+        db.execute('DELETE FROM knowledge_base WHERE id = ?', (knowledge_id,))
+        db.commit()
+
+        log_action(db, admin_id, 'admin_delete_knowledge', {'knowledge_id': knowledge_id})
+
+        return jsonify({"success": True, "message": "Knowledge deleted"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/knowledge/categories', methods=['GET'])
+@admin_required
+def get_knowledge_categories():
+    try:
+        db = get_db()
+        categories = db.execute('SELECT category, COUNT(*) as count FROM knowledge_base GROUP BY category').fetchall()
+        return jsonify({"success": True, "data": [dict(c) for c in categories]})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
