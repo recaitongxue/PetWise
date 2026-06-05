@@ -295,3 +295,158 @@ def model_status():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@recognize_bp.route('/recognize/camera', methods=['POST'])
+def recognize_camera():
+    if 'user_id' not in session:
+        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
+
+    try:
+        data = request.get_json()
+        image_base64 = data.get('image_base64')
+        session_id = data.get('session_id', str(uuid.uuid4()))
+        
+        if not image_base64:
+            return jsonify({"error": "No image data provided"}), 400
+
+        filename = f"camera_{uuid.uuid4().hex}.jpg"
+        filepath = os.path.join(Config.UPLOAD_FOLDER, filename)
+        
+        image_data = base64.b64decode(image_base64)
+        with open(filepath, 'wb') as f:
+            f.write(image_data)
+
+        result = predict_image(filepath)
+
+        user_id = session['user_id']
+        db = get_db()
+
+        db.execute('''
+            INSERT INTO recognitions (user_id, session_id, image_path, result, confidence, breed, top5)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, session_id, filepath, result['breed'], result['confidence'], result['breed'], json.dumps(result['top5'])))
+        db.commit()
+
+        db.execute('UPDATE breed_info SET views = views + 1 WHERE breed = ?', (result['breed'],))
+        db.commit()
+
+        breed_info = db.execute('SELECT * FROM breed_info WHERE breed = ?', (result['breed'],)).fetchone()
+
+        log_action(db, user_id, 'recognize_camera', {'breed': result['breed'], 'confidence': result['confidence'], 'session_id': session_id})
+
+        return jsonify({
+            "success": True,
+            "result": result,
+            "breed_info": dict(breed_info) if breed_info else None,
+            "model_available": MODEL_AVAILABLE,
+            "session_id": session_id
+        })
+    except Exception as e:
+        print(f"Camera recognition error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@recognize_bp.route('/recognize/camera/stream', methods=['POST'])
+def recognize_camera_stream():
+    if 'user_id' not in session:
+        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
+
+    try:
+        data = request.get_json()
+        images = data.get('images', [])
+        session_id = data.get('session_id', str(uuid.uuid4()))
+        
+        if not images or len(images) == 0:
+            return jsonify({"error": "No images provided"}), 400
+
+        results = []
+        user_id = session['user_id']
+        db = get_db()
+
+        for idx, image_base64 in enumerate(images):
+            try:
+                filename = f"stream_{session_id}_{idx}_{uuid.uuid4().hex}.jpg"
+                filepath = os.path.join(Config.UPLOAD_FOLDER, filename)
+                
+                image_data = base64.b64decode(image_base64)
+                with open(filepath, 'wb') as f:
+                    f.write(image_data)
+
+                result = predict_image(filepath)
+                result['frame_index'] = idx
+                
+                db.execute('''
+                    INSERT INTO recognitions (user_id, session_id, image_path, result, confidence, breed, top5)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (user_id, session_id, filepath, result['breed'], result['confidence'], result['breed'], json.dumps(result['top5'])))
+                
+                db.execute('UPDATE breed_info SET views = views + 1 WHERE breed = ?', (result['breed'],))
+                
+                results.append(result)
+            except Exception as e:
+                print(f"Frame {idx} error: {e}")
+                results.append({"breed": "未知", "confidence": 0.0, "category": "unknown", "top5": [], "frame_index": idx})
+
+        db.commit()
+
+        log_action(db, user_id, 'recognize_camera_stream', {'session_id': session_id, 'frame_count': len(images)})
+
+        return jsonify({
+            "success": True,
+            "results": results,
+            "session_id": session_id,
+            "model_available": MODEL_AVAILABLE
+        })
+    except Exception as e:
+        print(f"Camera stream error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@recognize_bp.route('/recognize/camera/session/<session_id>', methods=['GET'])
+def get_camera_session(session_id):
+    if 'user_id' not in session:
+        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
+
+    try:
+        user_id = session['user_id']
+        db = get_db()
+
+        records = db.execute('''
+            SELECT id, result, confidence, breed, top5, created_at 
+            FROM recognitions 
+            WHERE user_id = ? AND session_id = ? 
+            ORDER BY created_at DESC
+        ''', (user_id, session_id)).fetchall()
+
+        return jsonify({
+            "success": True,
+            "data": [dict(r) for r in records]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@recognize_bp.route('/recognize/camera/sessions', methods=['GET'])
+def get_camera_sessions():
+    if 'user_id' not in session:
+        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
+
+    try:
+        user_id = session['user_id']
+        db = get_db()
+
+        sessions = db.execute('''
+            SELECT session_id, COUNT(*) as count, MIN(created_at) as start_time, MAX(created_at) as end_time
+            FROM recognitions 
+            WHERE user_id = ? AND session_id IS NOT NULL 
+            GROUP BY session_id 
+            ORDER BY start_time DESC
+        ''', (user_id,)).fetchall()
+
+        return jsonify({
+            "success": True,
+            "data": [dict(s) for s in sessions]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

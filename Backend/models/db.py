@@ -141,6 +141,41 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_chat_history_session ON chat_history(session_id);
         CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id);
         CREATE INDEX IF NOT EXISTS idx_comments_breed ON comments(breed);
+
+        CREATE TABLE IF NOT EXISTS llm_models (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            provider TEXT NOT NULL,
+            api_key TEXT,
+            base_url TEXT,
+            model_name TEXT NOT NULL,
+            max_tokens INTEGER DEFAULT 2048,
+            temperature REAL DEFAULT 0.7,
+            top_p REAL DEFAULT 0.9,
+            is_active INTEGER DEFAULT 1,
+            is_default INTEGER DEFAULT 0,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS knowledge_base (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            category TEXT DEFAULT 'general',
+            tags TEXT,
+            source TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_llm_models_active ON llm_models(is_active);
+        CREATE INDEX IF NOT EXISTS idx_knowledge_category ON knowledge_base(category);
+        CREATE INDEX IF NOT EXISTS idx_knowledge_active ON knowledge_base(is_active);
     ''')
 
     if cursor.execute('SELECT COUNT(*) FROM breed_info').fetchone()[0] == 0:
