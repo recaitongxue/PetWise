@@ -2,6 +2,7 @@
 FastAPI Application for AI Agent Service
 Provides RESTful API endpoints for frontend and backend integration
 """
+from fastapi import FastAPI, HTTPException, Request, APIRouter, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field
