@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, session
 from models.db import get_db, init_db
-from utils import hash_password, verify_password, log_action
+from utils import hash_password, verify_password, log_action, generate_auth_token, get_current_user, login_required
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -74,12 +74,14 @@ def login():
         session['user_id'] = user['id']
         session['role'] = user['role']
 
+        auth_token = generate_auth_token(user['id'], user['role'])
+
         log_action(db, user['id'], 'login', {'username': username})
 
         return jsonify({
             "success": True,
             "message": "Login successful",
-            "token": str(user['id']),
+            "token": auth_token,
             "user": {
                 "id": user['id'],
                 "username": user['username'],
@@ -98,16 +100,15 @@ def logout():
     return jsonify({"success": True, "message": "Logout successful"})
 
 @auth_bp.route('/profile', methods=['GET'])
+@login_required
 def get_profile():
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user = get_current_user()
+        user_id = user['user_id']
         db = get_db()
-        user = db.execute('SELECT id, username, email, role, avatar, bio, created_at, last_login FROM users WHERE id = ?', (user_id,)).fetchone()
+        user_data = db.execute('SELECT id, username, email, role, avatar, bio, created_at, last_login FROM users WHERE id = ?', (user_id,)).fetchone()
 
-        if not user:
+        if not user_data:
             return jsonify({"error": "User not found"}), 404
 
         stats = {
@@ -118,15 +119,16 @@ def get_profile():
         }
 
         return jsonify({
+            "success": True,
             "user": {
-                "id": user['id'],
-                "username": user['username'],
-                "email": user['email'],
-                "role": user['role'],
-                "avatar": user['avatar'],
-                "bio": user['bio'],
-                "created_at": user['created_at'],
-                "last_login": user['last_login']
+                "id": user_data['id'],
+                "username": user_data['username'],
+                "email": user_data['email'],
+                "role": user_data['role'],
+                "avatar": user_data['avatar'],
+                "bio": user_data['bio'],
+                "created_at": user_data['created_at'],
+                "last_login": user_data['last_login']
             },
             "stats": stats
         })
@@ -134,12 +136,11 @@ def get_profile():
         return jsonify({"error": str(e)}), 500
 
 @auth_bp.route('/profile', methods=['PUT'])
+@login_required
 def update_profile():
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user = get_current_user()
+        user_id = user['user_id']
         data = request.get_json()
         db = get_db()
 

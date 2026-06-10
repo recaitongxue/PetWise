@@ -1,0 +1,10 @@
+// 统一API导出
+export { authAPI } from './auth'
+export { recognizeAPI } from './recognize'
+export { agentAPI } from './agent'
+export { petAPI } from './pets'
+export { favoriteAPI } from './favorites'
+export { commentAPI } from './comments'
+export { breedAPI } from './breed'
+export { adminAPI } from './admin'
+export { otherAPI } from './other'

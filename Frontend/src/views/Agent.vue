@@ -5,22 +5,58 @@
     <div class="container">
       <h1 class="page-title">🤖 AI智能助手</h1>
       
-      <div class="chat-container">
+      <div class="mode-tabs">
+        <button 
+          :class="{ active: currentMode === 'chat' }" 
+          @click="currentMode = 'chat'"
+        >
+          💬 对话模式
+        </button>
+        <button 
+          :class="{ active: currentMode === 'consultation' }" 
+          @click="currentMode = 'consultation'"
+        >
+          🏥 结构化问诊
+        </button>
+        <button 
+          :class="{ active: currentMode === 'history' }" 
+          @click="currentMode = 'history'"
+        >
+          📜 历史记录
+        </button>
+      </div>
+      
+      <!-- 对话模式 -->
+      <div v-if="currentMode === 'chat'" class="chat-container">
+        <div class="chat-header">
+          <div class="chat-info">
+            <span class="status-indicator" :class="{ online: agentOnline }"></span>
+            <span>{{ agentOnline ? 'AI助手在线' : 'AI助手离线' }}</span>
+          </div>
+          <label class="stream-toggle">
+            <input type="checkbox" v-model="useStream" />
+            <span>流式输出</span>
+          </label>
+        </div>
+        
         <div class="chat-messages" ref="messagesContainer">
           <div 
             v-for="(message, index) in messages" 
             :key="index" 
             class="message-item"
-            :class="{ 'is-user': message.isUser }"
+            :class="{ 'is-user': message.isUser, 'is-error': message.isError }"
           >
-            <div class="avatar">{{ message.isUser ? '👤' : '🤖' }}</div>
+            <div class="avatar">{{ message.isUser ? '👤' : (message.isError ? '❌' : '🤖') }}</div>
             <div class="message-content">
-              <p>{{ message.content }}</p>
+              <div v-if="message.isStreaming" class="streaming-text">
+                {{ message.displayedContent }}<span class="cursor">|</span>
+              </div>
+              <p v-else>{{ message.content }}</p>
               <span class="time">{{ message.time }}</span>
             </div>
           </div>
           
-          <div v-if="isTyping" class="typing-indicator">
+          <div v-if="isTyping && !useStream" class="typing-indicator">
             <span class="typing-dot"></span>
             <span class="typing-dot"></span>
             <span class="typing-dot"></span>
@@ -28,83 +64,228 @@
         </div>
         
         <div class="chat-input">
+          <select v-model="selectedPet" class="pet-select">
+            <option value="">选择宠物档案</option>
+            <option v-for="pet in pets" :key="pet.id" :value="pet.id">
+              {{ pet.name }} ({{ pet.breed }})
+            </option>
+          </select>
           <input 
             v-model="inputMessage" 
             type="text" 
             placeholder="输入您的问题..."
             @keyup.enter="sendMessage"
+            :disabled="isTyping"
           />
           <button @click="sendMessage" :disabled="!inputMessage || isTyping">
-            发送
+            {{ isTyping ? '发送中...' : '发送' }}
           </button>
         </div>
-      </div>
-      
-      <div class="quick-actions">
-        <h3>快捷功能</h3>
-        <div class="action-grid">
-          <button class="action-btn" @click="getAdvice('饮食')">
-            🍽️ 饮食建议
-          </button>
-          <button class="action-btn" @click="getAdvice('训练')">
-            🎾 训练指导
-          </button>
-          <button class="action-btn" @click="getAdvice('健康')">
-            🏥 健康咨询
-          </button>
-          <button class="action-btn danger" @click="handleEmergency">
-            🚨 紧急咨询
-          </button>
-        </div>
-      </div>
-      
-      <div class="history-section">
-        <h3>对话历史</h3>
-        <div v-if="chatHistory.length" class="history-list">
-          <div 
-            v-for="item in chatHistory" 
-            :key="item.id" 
-            class="history-item"
-          >
-            <p class="history-content">{{ item.content }}</p>
-            <span class="history-time">{{ item.created_at }}</span>
+        
+        <div class="quick-actions">
+          <h3>快捷功能</h3>
+          <div class="action-grid">
+            <button class="action-btn" @click="getQuickAdvice('饮食建议')">
+              🍽️ 饮食建议
+            </button>
+            <button class="action-btn" @click="getQuickAdvice('训练指导')">
+              🎾 训练指导
+            </button>
+            <button class="action-btn" @click="getQuickAdvice('日常护理')">
+              🛁 日常护理
+            </button>
+            <button class="action-btn danger" @click="handleEmergency">
+              🚨 紧急咨询
+            </button>
           </div>
         </div>
-        <div v-else class="empty-history">
-          <p>暂无对话记录</p>
+      </div>
+      
+      <!-- 结构化问诊模式 -->
+      <div v-if="currentMode === 'consultation'" class="consultation-container">
+        <div class="consultation-form">
+          <h3>请填写以下信息</h3>
+          
+          <div class="form-group">
+            <label>选择宠物</label>
+            <select v-model="consultationForm.petId">
+              <option value="">请选择宠物</option>
+              <option v-for="pet in pets" :key="pet.id" :value="pet.id">
+                {{ pet.name }} - {{ pet.breed }} ({{ pet.age }}岁)
+              </option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label>主要症状（可多选）</label>
+            <div class="symptom-checkboxes">
+              <label v-for="symptom in symptoms" :key="symptom" class="symptom-checkbox">
+                <input type="checkbox" :value="symptom" v-model="consultationForm.symptoms" />
+                {{ symptom }}
+              </label>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>发病时长</label>
+            <select v-model="consultationForm.duration">
+              <option value="">请选择</option>
+              <option value="今天">今天</option>
+              <option value="1-3天">1-3天</option>
+              <option value="3-7天">3-7天</option>
+              <option value="1-2周">1-2周</option>
+              <option value="2周以上">2周以上</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label>严重程度</label>
+            <div class="severity-slider">
+              <input type="range" min="1" max="5" v-model="consultationForm.severity" />
+              <div class="severity-labels">
+                <span>轻微</span>
+                <span>严重</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>补充信息</label>
+            <textarea 
+              v-model="consultationForm.additionalInfo" 
+              placeholder="其他需要说明的情况..."
+              rows="4"
+            ></textarea>
+          </div>
+          
+          <button class="submit-btn" @click="submitConsultation" :disabled="!canSubmitConsultation">
+            提交问诊
+          </button>
         </div>
-        <button class="clear-history-btn" @click="clearHistory">
-          清空对话历史
-        </button>
+        
+        <div v-if="consultationResult" class="consultation-result">
+          <h3>问诊结果</h3>
+          <div class="result-content">
+            {{ consultationResult }}
+          </div>
+          <div class="result-warning">
+            ⚠️ 建议：尽快联系宠物医院进行专业诊断
+          </div>
+        </div>
+      </div>
+      
+      <!-- 历史记录模式 -->
+      <div v-if="currentMode === 'history'" class="history-container">
+        <div class="history-list">
+          <div v-if="chatHistory.length" class="history-items">
+            <div 
+              v-for="item in chatHistory" 
+              :key="item.id" 
+              class="history-item"
+            >
+              <div class="history-header">
+                <span class="history-role">{{ item.role === 'user' ? '👤 您' : '🤖 AI' }}</span>
+                <span class="history-time">{{ item.created_at }}</span>
+              </div>
+              <p class="history-content">{{ item.message }}</p>
+            </div>
+          </div>
+          <div v-else class="empty-state">
+            <p>暂无对话记录</p>
+          </div>
+        </div>
+        
+        <div class="history-actions">
+          <button class="clear-btn" @click="clearHistory">
+            清空历史记录
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import Navbar from '@/components/Navbar.vue'
 import { agentAPI } from '@/api/agent'
+import { petAPI } from '@/api/pets'
+import { petsAPI } from '@/api/pets'
 
+const currentMode = ref('chat')
 const messages = ref([
   {
     isUser: false,
-    content: '您好！我是PetWise AI助手，有什么可以帮助您的吗？',
-    time: new Date().toLocaleTimeString()
+    content: '您好！我是PetWise AI助手。请问有什么可以帮到您的？',
+    time: new Date().toLocaleTimeString(),
+    isStreaming: false,
+    displayedContent: ''
   }
 ])
 const inputMessage = ref('')
 const isTyping = ref(false)
-const chatHistory = ref([])
+const useStream = ref(false)
+const agentOnline = ref(false)
 const messagesContainer = ref(null)
+const pets = ref([])
+const selectedPet = ref('')
+const chatHistory = ref([])
 
-const addMessage = (content, isUser) => {
-  messages.value.push({
-    isUser,
-    content,
-    time: new Date().toLocaleTimeString()
-  })
+const consultationForm = reactive({
+  petId: '',
+  symptoms: [],
+  duration: '',
+  severity: 3,
+  additionalInfo: ''
+})
+
+const consultationResult = ref('')
+
+const symptoms = [
+  '呕吐', '拉稀', '腹泻', '发烧', '咳嗽', 
+  '呼吸困难', '出血', '抽搐', '食欲不振',
+  '精神萎靡', '皮肤问题', '眼睛异常'
+]
+
+const canSubmitConsultation = computed(() => {
+  return consultationForm.petId && 
+         consultationForm.symptoms.length > 0 && 
+         consultationForm.duration
+})
+
+const loadPets = async () => {
+  try {
+    const response = await petsAPI.getPets()
+    if (response.success) {
+      pets.value = response.data || []
+    }
+  } catch (error) {
+    console.error('Failed to load pets:', error)
+  }
+}
+
+const loadHistory = async () => {
+  try {
+    const response = await agentAPI.getHistory()
+    if (response.success) {
+      chatHistory.value = response.history || []
+    }
+  } catch (error) {
+    console.error('Failed to load history:', error)
+  }
+}
+
+const checkAgentHealth = async () => {
+  try {
+    const response = await agentAPI.healthCheck()
+    agentOnline.value = response.status === 'healthy'
+  } catch (error) {
+    agentOnline.value = false
+  }
+}
+
+const scrollToBottom = () => {
   nextTick(() => {
     if (messagesContainer.value) {
       messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
@@ -116,56 +297,144 @@ const sendMessage = async () => {
   const message = inputMessage.value.trim()
   if (!message) return
   
-  addMessage(message, true)
+  const userMessage = {
+    isUser: true,
+    content: message,
+    time: new Date().toLocaleTimeString(),
+    isStreaming: false
+  }
+  messages.value.push(userMessage)
   inputMessage.value = ''
+  scrollToBottom()
+  
+  if (useStream.value) {
+    await sendStreamMessage(message)
+  } else {
+    await sendNormalMessage(message)
+  }
+}
+
+const sendNormalMessage = async (message) => {
   isTyping.value = true
   
   try {
     const response = await agentAPI.chat({
       message,
-      session_id: 'session_' + Date.now()
+      pet_id: selectedPet.value || undefined
     })
     
     if (response.success) {
-      addMessage(response.response, false)
+      messages.value.push({
+        isUser: false,
+        content: response.response,
+        time: new Date().toLocaleTimeString(),
+        isStreaming: false
+      })
       
-      if (response.suggestions) {
-        response.suggestions.forEach(suggestion => {
-          addMessage(`💡 建议：${suggestion}`, false)
+      if (response.is_sensitive) {
+        messages.value.push({
+          isUser: false,
+          content: '⚠️ 检测到敏感健康信息，建议使用结构化问诊功能获取更准确的建议。',
+          time: new Date().toLocaleTimeString(),
+          isStreaming: false
         })
       }
     }
   } catch (error) {
-    addMessage('抱歉，暂时无法回答您的问题。', false)
-    ElMessage.error('请求失败')
+    messages.value.push({
+      isUser: false,
+      content: '抱歉，服务暂时不可用，请稍后重试。',
+      time: new Date().toLocaleTimeString(),
+      isError: true,
+      isStreaming: false
+    })
   } finally {
     isTyping.value = false
+    scrollToBottom()
   }
 }
 
-const getAdvice = async (topic) => {
+const sendStreamMessage = async (message) => {
   isTyping.value = true
   
+  const assistantMessage = {
+    isUser: false,
+    content: '',
+    time: new Date().toLocaleTimeString(),
+    isStreaming: true,
+    displayedContent: ''
+  }
+  messages.value.push(assistantMessage)
+  
   try {
-    const response = await agentAPI.getAdvice({
-      topic,
-      pet_type: 'cat',
-      specific_issue: topic + '建议'
+    // 使用 EventSource 或 fetch 进行 SSE 流式响应
+    const response = await fetch('http://localhost:5000/api/agent/chat/stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({
+        message,
+        pet_id: selectedPet.value || undefined
+      })
     })
     
-    if (response.success) {
-      addMessage(`您询问的是「${topic}」相关建议：`, false)
-      addMessage(response.advice, false)
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      
+      const chunk = decoder.decode(value)
+      const lines = chunk.split('\n')
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.substring(6))
+            
+            if (data.content) {
+              assistantMessage.displayedContent += data.content
+              assistantMessage.content = assistantMessage.displayedContent
+            }
+            
+            if (data.done) {
+              assistantMessage.isStreaming = false
+              assistantMessage.content = assistantMessage.displayedContent
+            }
+            
+            if (data.error) {
+              assistantMessage.isStreaming = false
+              assistantMessage.content = data.error
+              assistantMessage.isError = true
+            }
+            
+            scrollToBottom()
+          } catch (e) {
+            console.error('Parse error:', e)
+          }
+        }
+      }
     }
   } catch (error) {
-    ElMessage.error('请求失败')
+    assistantMessage.isStreaming = false
+    assistantMessage.content = '抱歉，流式响应暂时不可用，请关闭流式输出模式。'
+    assistantMessage.isError = true
   } finally {
     isTyping.value = false
+    scrollToBottom()
   }
+}
+
+const getQuickAdvice = async (topic) => {
+  inputMessage.value = `请提供关于${topic}的建议`
+  await sendMessage()
 }
 
 const handleEmergency = async () => {
-  const symptoms = prompt('请描述宠物的症状：')
+  const symptoms = prompt('请简要描述宠物的紧急症状：')
   if (!symptoms) return
   
   isTyping.value = true
@@ -173,46 +442,71 @@ const handleEmergency = async () => {
   try {
     const response = await agentAPI.emergency({
       symptoms,
-      pet_type: 'cat',
-      severity: 'high'
+      pet_type: pets.value.find(p => p.id === selectedPet.value)?.category || 'unknown'
     })
     
     if (response.success) {
-      addMessage(`⚠️ 紧急咨询结果：`, false)
-      addMessage(response.consultation, false)
-      if (response.recommendation === 'seek_immediate_medical_attention') {
-        addMessage('🚨 建议：请立即联系兽医！', false)
+      messages.value.push({
+        isUser: false,
+        content: `🚨 紧急咨询结果：\n\n${response.consultation}`,
+        time: new Date().toLocaleTimeString(),
+        isStreaming: false
+      })
+      
+      if (response.warning) {
+        messages.value.push({
+          isUser: false,
+          content: response.warning,
+          time: new Date().toLocaleTimeString(),
+          isError: true,
+          isStreaming: false
+        })
       }
     }
   } catch (error) {
-    ElMessage.error('请求失败')
+    ElMessage.error('紧急咨询失败')
+  } finally {
+    isTyping.value = false
+    scrollToBottom()
+  }
+}
+
+const submitConsultation = async () => {
+  if (!canSubmitConsultation.value) {
+    ElMessage.error('请填写完整的问诊信息')
+    return
+  }
+  
+  isTyping.value = true
+  consultationResult.value = ''
+  
+  try {
+    const response = await agentAPI.structuredConsultation({
+      pet_id: consultationForm.petId,
+      symptoms: consultationForm.symptoms,
+      duration: consultationForm.duration,
+      severity: ['轻微', '较轻', '中等', '较重', '严重'][consultationForm.severity - 1],
+      additional_info: consultationForm.additionalInfo
+    })
+    
+    if (response.success) {
+      consultationResult.value = response.consultation
+    }
+  } catch (error) {
+    ElMessage.error('问诊提交失败')
   } finally {
     isTyping.value = false
   }
 }
 
-const loadHistory = async () => {
-  try {
-    const response = await agentAPI.getHistory()
-    if (response.success) {
-      chatHistory.value = response.data || []
-    }
-  } catch (error) {
-    console.log('Failed to load chat history:', error)
-  }
-}
-
 const clearHistory = async () => {
+  if (!confirm('确定要清空所有对话历史吗？')) return
+  
   try {
     const response = await agentAPI.clearHistory()
     if (response.success) {
-      ElMessage.success('已清空对话历史')
+      ElMessage.success('已清空历史记录')
       chatHistory.value = []
-      messages.value = [{
-        isUser: false,
-        content: '您好！我是PetWise AI助手，有什么可以帮助您的吗？',
-        time: new Date().toLocaleTimeString()
-      }]
     }
   } catch (error) {
     ElMessage.error('清空失败')
@@ -220,7 +514,15 @@ const clearHistory = async () => {
 }
 
 onMounted(() => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    loadPets()
+  }
   loadHistory()
+  checkAgentHealth()
+  
+  // 每30秒检查一次智能体状态
+  setInterval(checkAgentHealth, 30000)
 })
 </script>
 
@@ -231,7 +533,7 @@ onMounted(() => {
 }
 
 .container {
-  max-width: 800px;
+  max-width: 900px;
   margin: 0 auto;
   padding: 30px 20px;
 }
@@ -242,11 +544,76 @@ onMounted(() => {
   margin-bottom: 30px;
 }
 
+.mode-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  background: white;
+  padding: 10px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.mode-tabs button {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.mode-tabs button.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
 .chat-container {
   background: white;
   border-radius: 16px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   overflow: hidden;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: #f9fafb;
+  border-bottom: 1px solid #eee;
+}
+
+.chat-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #999;
+}
+
+.status-indicator.online {
+  background: #67c23a;
+}
+
+.stream-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.stream-toggle input {
+  cursor: pointer;
 }
 
 .chat-messages {
@@ -271,8 +638,9 @@ onMounted(() => {
   border-radius: 16px 16px 4px 16px;
 }
 
-.message-item.is-user .time {
-  color: rgba(255, 255, 255, 0.7);
+.message-item.is-error .message-content {
+  background: #fff2f0;
+  border: 1px solid #f56c6c;
 }
 
 .avatar {
@@ -289,7 +657,20 @@ onMounted(() => {
 
 .message-content p {
   margin: 0;
-  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.streaming-text {
+  font-family: monospace;
+}
+
+.cursor {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 
 .time {
@@ -340,6 +721,15 @@ onMounted(() => {
   gap: 10px;
   padding: 20px;
   border-top: 1px solid #eee;
+  align-items: center;
+}
+
+.pet-select {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  min-width: 150px;
 }
 
 .chat-input input {
@@ -366,7 +756,7 @@ onMounted(() => {
 }
 
 .quick-actions {
-  margin-top: 30px;
+  margin-top: 20px;
   background: white;
   border-radius: 16px;
   padding: 20px;
@@ -407,62 +797,171 @@ onMounted(() => {
   background: #ffccc7;
 }
 
-.history-section {
-  margin-top: 30px;
+/* 结构化问诊 */
+.consultation-container {
   background: white;
   border-radius: 16px;
-  padding: 20px;
+  padding: 30px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 
-.history-section h3 {
-  margin-bottom: 15px;
-  font-size: 16px;
+.consultation-form h3 {
+  margin-bottom: 20px;
 }
 
-.history-list {
-  max-height: 200px;
-  overflow-y: auto;
+.form-group {
+  margin-bottom: 20px;
 }
 
-.history-item {
-  padding: 12px;
-  background: #f9fafb;
-  border-radius: 8px;
-  margin-bottom: 10px;
-}
-
-.history-content {
-  margin: 0;
-  font-size: 14px;
-  color: #333;
-}
-
-.history-time {
+.form-group label {
   display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.symptom-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.symptom-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px;
+  background: #f5f7fa;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.symptom-checkbox input {
+  cursor: pointer;
+}
+
+.severity-slider input {
+  width: 100%;
+}
+
+.severity-labels {
+  display: flex;
+  justify-content: space-between;
   font-size: 12px;
   color: #999;
   margin-top: 5px;
 }
 
-.empty-history {
-  text-align: center;
+.submit-btn {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.consultation-result {
+  margin-top: 30px;
+  padding: 20px;
+  background: #f0f9ff;
+  border-radius: 12px;
+  border: 1px solid #409eff;
+}
+
+.consultation-result h3 {
+  margin-bottom: 15px;
+  color: #409eff;
+}
+
+.result-content {
+  white-space: pre-wrap;
+  line-height: 1.8;
+  margin-bottom: 15px;
+}
+
+.result-warning {
+  padding: 12px;
+  background: #fff7e6;
+  border-radius: 8px;
+  color: #e6a23c;
+  font-weight: 500;
+}
+
+/* 历史记录 */
+.history-container {
+  background: white;
+  border-radius: 16px;
   padding: 30px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.history-items {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.history-item {
+  padding: 15px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.history-role {
+  font-weight: 600;
+}
+
+.history-time {
+  font-size: 12px;
   color: #999;
 }
 
-.clear-history-btn {
-  margin-top: 15px;
-  padding: 8px 16px;
-  background: #fff2f0;
-  border: none;
-  border-radius: 6px;
-  color: #f56c6c;
-  cursor: pointer;
-  font-size: 12px;
+.history-content {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.6;
 }
 
-.clear-history-btn:hover {
-  background: #ffccc7;
+.history-actions {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.clear-btn {
+  padding: 10px 30px;
+  background: #fff2f0;
+  color: #f56c6c;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px;
+  color: #999;
 }
 </style>

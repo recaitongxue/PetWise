@@ -1,16 +1,14 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify
 from models.db import get_db
-from utils import log_action
+from utils import log_action, login_required, get_current_user_id
 
 favorites_bp = Blueprint('favorites', __name__)
 
 @favorites_bp.route('/favorites', methods=['GET'])
+@login_required
 def get_favorites():
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
         
         favorites = db.execute('''
@@ -29,12 +27,10 @@ def get_favorites():
         return jsonify({"error": str(e)}), 500
 
 @favorites_bp.route('/favorites', methods=['POST'])
+@login_required
 def add_favorite():
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         data = request.get_json()
         breed = data.get('breed')
 
@@ -58,12 +54,10 @@ def add_favorite():
         return jsonify({"error": str(e)}), 500
 
 @favorites_bp.route('/favorites/<breed>', methods=['DELETE'])
+@login_required
 def remove_favorite(breed):
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         favorite = db.execute('SELECT * FROM favorites WHERE user_id = ? AND breed = ?', (user_id, breed)).fetchone()

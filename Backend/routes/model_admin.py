@@ -86,12 +86,15 @@ def add_model_version():
               validation_accuracy, top1_accuracy, top5_accuracy, description, admin_id))
         db.commit()
 
+        cursor = db.cursor()
+        model_id = cursor.execute('SELECT last_insert_rowid()').fetchone()[0]
+
         log_action(db, admin_id, 'add_model_version', {'version': version, 'model_path': model_path})
 
         return jsonify({
             "success": True,
             "message": "Model version added",
-            "model_id": db.lastrowid
+            "model_id": model_id
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500

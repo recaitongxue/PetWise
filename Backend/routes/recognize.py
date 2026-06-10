@@ -2,9 +2,9 @@ import os
 import json
 import uuid
 import base64
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify
 from models.db import get_db
-from utils import allowed_file, log_action
+from utils import allowed_file, log_action, get_current_user_id, login_required
 from config import Config
 
 recognize_bp = Blueprint('recognize', __name__)
@@ -47,7 +47,6 @@ def load_model():
         
         if os.path.exists(Config.MODEL_PATH):
             checkpoint = torch.load(Config.MODEL_PATH, map_location='cpu')
-            # 检查是否是完整的检查点（包含 model_state_dict）
             if 'model_state_dict' in checkpoint:
                 model.load_state_dict(checkpoint['model_state_dict'])
                 print(f"Model loaded from checkpoint (epoch {checkpoint.get('epoch', 'unknown')}, val_acc: {checkpoint.get('val_acc', 'unknown')})")
@@ -109,10 +108,8 @@ def predict_image(image_path):
         return {"breed": "未知", "confidence": 0.0, "category": "unknown", "top5": []}
 
 @recognize_bp.route('/recognize', methods=['POST'])
+@login_required
 def recognize():
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     if 'image' not in request.files:
         return jsonify({"error": "No image provided"}), 400
 
@@ -132,7 +129,7 @@ def recognize():
 
         result = predict_image(filepath)
 
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         db.execute('''
@@ -161,10 +158,8 @@ def recognize():
         return jsonify({"error": str(e)}), 500
 
 @recognize_bp.route('/recognize/base64', methods=['POST'])
+@login_required
 def recognize_base64():
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
         data = request.get_json()
         image_base64 = data.get('image_base64')
@@ -181,7 +176,7 @@ def recognize_base64():
 
         result = predict_image(filepath)
 
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         db.execute('''
@@ -210,12 +205,10 @@ def recognize_base64():
         return jsonify({"error": str(e)}), 500
 
 @recognize_bp.route('/recognize/history', methods=['GET'])
+@login_required
 def recognize_history():
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('per_page', 10))
         offset = (page - 1) * per_page
@@ -245,12 +238,10 @@ def recognize_history():
         return jsonify({"error": str(e)}), 500
 
 @recognize_bp.route('/recognize/history/<int:history_id>', methods=['DELETE'])
+@login_required
 def delete_recognition(history_id):
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         recognition = db.execute('SELECT * FROM recognitions WHERE id = ? AND user_id = ?', (history_id, user_id)).fetchone()
@@ -261,6 +252,21 @@ def delete_recognition(history_id):
         db.commit()
 
         return jsonify({"success": True, "message": "Recognition deleted"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@recognize_bp.route('/breeds', methods=['GET'])
+def get_breeds():
+    try:
+        db = get_db()
+        breeds = db.execute('SELECT * FROM breed_info ORDER BY views DESC, category, breed').fetchall()
+        
+        return jsonify({
+            "success": True,
+            "breeds": [dict(b) for b in breeds],
+            "total": len(breeds),
+            "model_available": MODEL_AVAILABLE
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -282,6 +288,36 @@ def get_classes():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@recognize_bp.route('/breeds/popular', methods=['GET'])
+def get_popular_breeds():
+    try:
+        db = get_db()
+        breeds = db.execute('SELECT * FROM breed_info ORDER BY views DESC LIMIT 10').fetchall()
+        
+        return jsonify({
+            "success": True,
+            "breeds": [dict(b) for b in breeds],
+            "total": len(breeds)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@recognize_bp.route('/breed/<breed_name>', methods=['GET'])
+def get_breed_detail(breed_name):
+    try:
+        db = get_db()
+        breed = db.execute('SELECT * FROM breed_info WHERE breed = ?', (breed_name,)).fetchone()
+        
+        if not breed:
+            return jsonify({"error": "Breed not found"}), 404
+
+        return jsonify({
+            "success": True,
+            "breed": dict(breed)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @recognize_bp.route('/model/status', methods=['GET'])
 def model_status():
     try:
@@ -297,10 +333,8 @@ def model_status():
         return jsonify({"error": str(e)}), 500
 
 @recognize_bp.route('/recognize/camera', methods=['POST'])
+@login_required
 def recognize_camera():
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
         data = request.get_json()
         image_base64 = data.get('image_base64')
@@ -318,7 +352,7 @@ def recognize_camera():
 
         result = predict_image(filepath)
 
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         db.execute('''
@@ -348,10 +382,8 @@ def recognize_camera():
         return jsonify({"error": str(e)}), 500
 
 @recognize_bp.route('/recognize/camera/stream', methods=['POST'])
+@login_required
 def recognize_camera_stream():
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
         data = request.get_json()
         images = data.get('images', [])
@@ -361,7 +393,7 @@ def recognize_camera_stream():
             return jsonify({"error": "No images provided"}), 400
 
         results = []
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         for idx, image_base64 in enumerate(images):
@@ -405,12 +437,10 @@ def recognize_camera_stream():
         return jsonify({"error": str(e)}), 500
 
 @recognize_bp.route('/recognize/camera/session/<session_id>', methods=['GET'])
+@login_required
 def get_camera_session(session_id):
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         records = db.execute('''
@@ -428,12 +458,10 @@ def get_camera_session(session_id):
         return jsonify({"error": str(e)}), 500
 
 @recognize_bp.route('/recognize/camera/sessions', methods=['GET'])
+@login_required
 def get_camera_sessions():
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         sessions = db.execute('''
@@ -452,11 +480,8 @@ def get_camera_sessions():
         return jsonify({"error": str(e)}), 500
 
 @recognize_bp.route('/recognize/batch', methods=['POST'])
+@login_required
 def recognize_batch():
-    """批量识别接口"""
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     if 'images' not in request.files:
         return jsonify({"error": "No images provided"}), 400
 
@@ -469,7 +494,7 @@ def recognize_batch():
 
     try:
         results = []
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         for idx, file in enumerate(files):
@@ -501,7 +526,6 @@ def recognize_batch():
                 "result": result
             })
 
-            # 收集低置信度样本
             if result['confidence'] < 0.5:
                 db.execute('''
                     INSERT INTO hard_examples (user_id, image_path, predicted_breed, confidence, is_low_confidence, collected_reason, status)
@@ -525,11 +549,8 @@ def recognize_batch():
         return jsonify({"error": str(e)}), 500
 
 @recognize_bp.route('/recognize/correct', methods=['POST'])
+@login_required
 def correct_recognition():
-    """用户纠错接口"""
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
         data = request.get_json()
         recognition_id = data.get('recognition_id')
@@ -539,26 +560,27 @@ def correct_recognition():
         if not recognition_id or not corrected_breed:
             return jsonify({"error": "recognition_id and corrected_breed are required"}), 400
 
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         recognition = db.execute('SELECT * FROM recognitions WHERE id = ? AND user_id = ?', (recognition_id, user_id)).fetchone()
         if not recognition:
             return jsonify({"error": "Recognition not found"}), 404
 
-        # 创建纠错记录
         db.execute('''
             INSERT INTO corrections (recognition_id, user_id, original_breed, corrected_breed, confidence, reason, status)
             VALUES (?, ?, ?, ?, ?, ?, 'pending')
         ''', (recognition_id, user_id, recognition['breed'], corrected_breed, recognition['confidence'], reason))
 
-        # 收集到难样本
         db.execute('''
             INSERT INTO hard_examples (recognition_id, user_id, image_path, predicted_breed, confidence, is_user_corrected, corrected_breed, collected_reason, status)
             VALUES (?, ?, ?, ?, ?, 1, ?, ?, 'pending')
         ''', (recognition_id, user_id, recognition['image_path'], recognition['breed'], recognition['confidence'], corrected_breed, 'user_correction'))
 
         db.commit()
+        
+        cursor = db.cursor()
+        correction_id = cursor.execute('SELECT last_insert_rowid()').fetchone()[0]
 
         log_action(db, user_id, 'correct_recognition', {
             'recognition_id': recognition_id,
@@ -569,7 +591,7 @@ def correct_recognition():
         return jsonify({
             "success": True,
             "message": "Correction submitted successfully",
-            "correction_id": db.lastrowid
+            "correction_id": correction_id
         })
     except Exception as e:
         print(f"Correction error: {e}")
@@ -578,13 +600,10 @@ def correct_recognition():
         return jsonify({"error": str(e)}), 500
 
 @recognize_bp.route('/recognize/corrections', methods=['GET'])
+@login_required
 def get_corrections():
-    """获取用户纠错记录"""
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('per_page', 10))
         status = request.args.get('status', 'all')

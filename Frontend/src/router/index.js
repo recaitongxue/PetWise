@@ -24,6 +24,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/batch-recognize',
+    name: 'BatchRecognize',
+    component: () => import('../views/BatchRecognize.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/agent',
     name: 'Agent',
     component: () => import('../views/Agent.vue'),
@@ -33,6 +39,18 @@ const routes = [
     path: '/pets',
     name: 'Pets',
     component: () => import('../views/Pets.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/health',
+    name: 'HealthRecords',
+    component: () => import('../views/HealthRecords.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/schedule',
+    name: 'Schedule',
+    component: () => import('../views/Schedule.vue'),
     meta: { requiresAuth: true }
   },
   {
@@ -99,6 +117,63 @@ router.beforeEach((to, from, next) => {
   } else {
     next()
   }
+})
+
+// 添加新的管理页面路由
+router.addRoute('admin', {
+  path: '/admin/models',
+  name: 'AdminModels',
+  component: () => import('../views/admin/Models.vue'),
+  meta: { requiresAuth: true, requiresAdmin: true }
+})
+
+router.addRoute('admin', {
+  path: '/admin/knowledge',
+  name: 'AdminKnowledge',
+  component: () => import('../views/admin/Knowledge.vue'),
+  meta: { requiresAuth: true, requiresAdmin: true }
+})
+
+router.addRoute('admin', {
+  path: '/admin/samples',
+  name: 'AdminSamples',
+  component: () => import('../views/admin/Samples.vue'),
+  meta: { requiresAuth: true, requiresAdmin: true }
+})
+
+router.addRoute('admin', {
+  path: '/admin/sensitive-words',
+  name: 'AdminSensitiveWords',
+  component: () => import('../views/admin/SensitiveWords.vue'),
+  meta: { requiresAuth: true, requiresAdmin: true }
+})
+
+router.addRoute('admin', {
+  path: '/admin/rate-limits',
+  name: 'AdminRateLimits',
+  component: () => import('../views/admin/RateLimits.vue'),
+  meta: { requiresAuth: true, requiresAdmin: true }
+})
+
+router.addRoute('admin', {
+  path: '/admin/prompts',
+  name: 'AdminPrompts',
+  component: () => import('../views/admin/Prompts.vue'),
+  meta: { requiresAuth: true, requiresAdmin: true }
+})
+
+router.addRoute('admin', {
+  path: '/admin/corrections',
+  name: 'AdminCorrections',
+  component: () => import('../views/admin/Corrections.vue'),
+  meta: { requiresAuth: true, requiresAdmin: true }
+})
+
+router.addRoute('admin', {
+  path: '/admin/logs',
+  name: 'AdminLogs',
+  component: () => import('../views/admin/Logs.vue'),
+  meta: { requiresAuth: true, requiresAdmin: true }
 })
 
 export default router

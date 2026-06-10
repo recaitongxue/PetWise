@@ -6,11 +6,19 @@
       <aside class="sidebar">
         <h2 class="sidebar-title">管理后台</h2>
         <nav class="sidebar-nav">
-          <a href="/admin" class="nav-item active">📊 仪表盘</a>
-          <a href="/admin/users" class="nav-item">👥 用户管理</a>
-          <a href="/admin/stats" class="nav-item">📈 数据统计</a>
-          <a href="/admin/feedback" class="nav-item">💬 用户反馈</a>
-          <a href="/admin/announcements" class="nav-item">📢 公告管理</a>
+          <a href="/admin" class="nav-item" :class="{ active: $route.path === '/admin' }">📊 仪表盘</a>
+          <a href="/admin/users" class="nav-item" :class="{ active: $route.path === '/admin/users' }">👥 用户管理</a>
+          <a href="/admin/models" class="nav-item" :class="{ active: $route.path === '/admin/models' }">🤖 大模型管理</a>
+          <a href="/admin/knowledge" class="nav-item" :class="{ active: $route.path === '/admin/knowledge' }">📚 知识库</a>
+          <a href="/admin/samples" class="nav-item" :class="{ active: $route.path === '/admin/samples' }">🔍 难样本</a>
+          <a href="/admin/stats" class="nav-item" :class="{ active: $route.path === '/admin/stats' }">📈 数据统计</a>
+          <a href="/admin/logs" class="nav-item" :class="{ active: $route.path === '/admin/logs' }">📋 系统日志</a>
+          <a href="/admin/rate-limits" class="nav-item" :class="{ active: $route.path === '/admin/rate-limits' }">⚡ 限流配置</a>
+          <a href="/admin/sensitive-words" class="nav-item" :class="{ active: $route.path === '/admin/sensitive-words' }">🛡️ 敏感词</a>
+          <a href="/admin/prompts" class="nav-item" :class="{ active: $route.path === '/admin/prompts' }">💭 Prompt模板</a>
+          <a href="/admin/corrections" class="nav-item" :class="{ active: $route.path === '/admin/corrections' }">🔄 纠错记录</a>
+          <a href="/admin/feedback" class="nav-item" :class="{ active: $route.path === '/admin/feedback' }">💬 用户反馈</a>
+          <a href="/admin/announcements" class="nav-item" :class="{ active: $route.path === '/admin/announcements' }">📢 公告管理</a>
         </nav>
       </aside>
       
