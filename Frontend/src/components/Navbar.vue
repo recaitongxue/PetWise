@@ -16,6 +16,8 @@
           <a href="/health" class="nav-link">健康记录</a>
           <a href="/schedule" class="nav-link">日程提醒</a>
           <a href="/favorites" class="nav-link">我的收藏</a>
+          <a href="/announcements" class="nav-link">系统公告</a>
+          <a href="/feedback" class="nav-link">意见反馈</a>
         </template>
         <template v-else>
           <a href="/recognize" class="nav-link">宠物识别</a>

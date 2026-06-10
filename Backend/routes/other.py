@@ -52,3 +52,39 @@ def submit_feedback():
 @other_bp.route('/health_check', methods=['GET'])
 def health_check():
     return jsonify({"status": "healthy", "service": "PetWise API"})
+
+@other_bp.route('/announcements', methods=['GET'])
+def get_announcements():
+    """获取公告列表（用户端）"""
+    try:
+        db = get_db()
+        announcements = db.execute('''
+            SELECT id, title, content, is_pinned, created_at 
+            FROM announcements 
+            WHERE is_active = 1 
+            ORDER BY is_pinned DESC, created_at DESC
+        ''').fetchall()
+
+        return jsonify({"success": True, "data": [dict(a) for a in announcements]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@other_bp.route('/feedback/my', methods=['GET'])
+@login_required
+def get_my_feedback():
+    """获取我的反馈记录"""
+    try:
+        user_id = get_current_user_id()
+        db = get_db()
+        
+        feedback = db.execute('''
+            SELECT f.*, u.username as admin_name
+            FROM feedback f 
+            LEFT JOIN users u ON f.replied_by = u.id
+            WHERE f.user_id = ?
+            ORDER BY f.created_at DESC
+        ''', (user_id,)).fetchall()
+
+        return jsonify({"success": True, "data": [dict(f) for f in feedback]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

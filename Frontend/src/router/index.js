@@ -60,6 +60,18 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/feedback',
+    name: 'Feedback',
+    component: () => import('../views/Feedback.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/announcements',
+    name: 'Announcements',
+    component: () => import('../views/Announcements.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/breed/:name',
     name: 'BreedDetail',
     component: () => import('../views/BreedDetail.vue')

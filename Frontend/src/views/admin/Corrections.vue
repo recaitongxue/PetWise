@@ -115,7 +115,6 @@
         </div>
       </div>
     </el-dialog>
-    </div>
   </AdminLayout>
 </template>
 

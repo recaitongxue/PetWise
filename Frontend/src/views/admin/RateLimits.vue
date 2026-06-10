@@ -113,7 +113,6 @@
         <el-button type="primary" @click="submitConfig">{{ editingConfig ? '更新' : '添加' }}</el-button>
       </div>
     </el-dialog>
-    </div>
   </AdminLayout>
 </template>
 

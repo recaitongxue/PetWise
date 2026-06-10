@@ -919,6 +919,30 @@ def delete_rate_limit_config(config_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@admin_bp.route('/admin/rate-limits/logs', methods=['GET'])
+@admin_required
+def get_rate_limit_logs():
+    """获取用户限流记录"""
+    try:
+        db = get_db()
+        user_id = request.args.get('user_id', '')
+        endpoint = request.args.get('endpoint', '')
+        
+        query = 'SELECT * FROM rate_limits WHERE 1=1'
+        params = []
+        
+        if user_id:
+            query += ' AND user_id = ?'
+            params.append(user_id)
+        if endpoint:
+            query += ' AND endpoint LIKE ?'
+            params.append(f'%{endpoint}%')
+        
+        logs = db.execute(query, params).fetchall()
+        return jsonify({"success": True, "data": [dict(l) for l in logs]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # ==================== 敏感词管理 ====================
 
 @admin_bp.route('/admin/sensitive-words', methods=['GET'])
@@ -1110,6 +1134,34 @@ def delete_prompt_template(template_id):
         log_action(db, admin_id, 'admin_delete_prompt_template', {'template_id': template_id})
         
         return jsonify({"success": True, "message": "Prompt template deleted"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ==================== Prompts管理 (兼容前端) ====================
+
+@admin_bp.route('/admin/prompts', methods=['GET'])
+@admin_required
+def get_prompts():
+    """获取Prompt列表（兼容前端调用）"""
+    try:
+        db = get_db()
+        prompt_type = request.args.get('prompt_type', '')
+        search = request.args.get('search', '')
+        
+        query = 'SELECT * FROM prompt_templates WHERE 1=1'
+        params = []
+        
+        if prompt_type:
+            query += ' AND prompt_type = ?'
+            params.append(prompt_type)
+        if search:
+            query += ' AND name LIKE ?'
+            params.append(f'%{search}%')
+        
+        query += ' ORDER BY prompt_type, name'
+        
+        prompts = db.execute(query, params).fetchall()
+        return jsonify({"success": True, "data": [dict(p) for p in prompts]})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

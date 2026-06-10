@@ -136,7 +136,16 @@
                   :label="breed" 
                   :value="breed"
                 />
+                <el-option label="🔄 其他（手动输入）" value="__custom__" />
               </el-select>
+              
+              <div v-if="correctedBreed === '__custom__'" class="custom-breed-input">
+                <el-input 
+                  v-model="customBreed"
+                  placeholder="请输入实际品种名称"
+                />
+              </div>
+              
               <el-input 
                 v-model="correctionReason"
                 type="textarea"
@@ -204,6 +213,7 @@ const showHistory = ref(false)
 const history = ref([])
 const correctedBreed = ref('')
 const correctionReason = ref('')
+const customBreed = ref('')
 const allBreeds = ref([])
 const currentRecognitionId = ref(null)
 
@@ -293,9 +303,19 @@ const handleBatchRecognize = () => {
 }
 
 const submitCorrection = async () => {
-  if (!correctedBreed.value) {
+  let actualBreed = ''
+  
+  if (correctedBreed.value === '__custom__') {
+    if (!customBreed.value.trim()) {
+      ElMessage.error('请输入实际品种名称')
+      return
+    }
+    actualBreed = customBreed.value.trim()
+  } else if (!correctedBreed.value) {
     ElMessage.error('请选择正确品种')
     return
+  } else {
+    actualBreed = correctedBreed.value
   }
   
   if (!currentRecognitionId.value) {
@@ -306,13 +326,14 @@ const submitCorrection = async () => {
   try {
     const response = await recognizeAPI.correctRecognition(
       currentRecognitionId.value,
-      correctedBreed.value,
+      actualBreed,
       correctionReason.value
     )
     
     if (response.success) {
       ElMessage.success('感谢您的反馈！')
       correctedBreed.value = ''
+      customBreed.value = ''
       correctionReason.value = ''
     } else {
       ElMessage.error(response.message || '提交失败，请稍后重试')

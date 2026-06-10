@@ -138,6 +138,8 @@ def recognize():
         ''', (user_id, filepath, result['breed'], result['confidence'], result['breed'], json.dumps(result['top5'])))
         db.commit()
 
+        recognition_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
         db.execute('UPDATE breed_info SET views = views + 1 WHERE breed = ?', (result['breed'],))
         db.commit()
 
@@ -148,6 +150,7 @@ def recognize():
         return jsonify({
             "success": True,
             "result": result,
+            "recognition_id": recognition_id,
             "breed_info": dict(breed_info) if breed_info else None,
             "model_available": MODEL_AVAILABLE
         })
