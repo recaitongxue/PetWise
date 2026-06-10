@@ -238,10 +238,12 @@ const loadStats = async () => {
     ])
     
     if (basicRes.success) {
-      stats.value = basicRes.data || {}
+      // getStats() 没有 data 包装层，直接使用响应对象
+      stats.value = basicRes
     }
     
     if (realtimeRes.success) {
+      // getRealtimeStats() 有 data 包装层
       realtimeStats.value = realtimeRes.data || {}
     }
   } catch (error) {

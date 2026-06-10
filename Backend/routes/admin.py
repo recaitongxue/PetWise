@@ -267,7 +267,9 @@ def get_stats():
             "total_favorites": db.execute('SELECT COUNT(*) FROM favorites').fetchone()[0],
             "total_comments": db.execute('SELECT COUNT(*) FROM comments').fetchone()[0],
             "total_chats": db.execute('SELECT COUNT(*) FROM chat_history WHERE role = ?', ('user',)).fetchone()[0],
-            "pending_feedback": db.execute('SELECT COUNT(*) FROM feedback WHERE status = ?', ('pending',)).fetchone()[0]
+            "pending_feedback": db.execute('SELECT COUNT(*) FROM feedback WHERE status = ?', ('pending',)).fetchone()[0],
+            "pending_corrections": db.execute('SELECT COUNT(*) FROM corrections WHERE status = ?', ('pending',)).fetchone()[0],
+            "active_announcements": db.execute('SELECT COUNT(*) FROM announcements WHERE is_active = ?', (1,)).fetchone()[0]
         }
 
         breed_stats = db.execute('''

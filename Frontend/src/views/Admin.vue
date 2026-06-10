@@ -89,7 +89,9 @@ const loadStats = async () => {
   try {
     const response = await adminAPI.getStats()
     if (response.success) {
-      stats.value = response.data || {}
+      // 后端直接返回数据，没有 data 包装层
+      const data = response.data || response
+      stats.value = typeof data === 'object' && !Array.isArray(data) ? data : {}
     }
   } catch (error) {
     console.log('Failed to load stats:', error)

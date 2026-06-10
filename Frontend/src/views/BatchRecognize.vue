@@ -55,7 +55,7 @@
         <h3>识别结果</h3>
         <div class="results-grid">
           <div v-for="(result, index) in batchResults" :key="index" class="result-card">
-            <img :src="result.image_path ? `/uploads/${result.image_path}` : ''" :alt="result.breed" class="result-image" />
+            <img :src="getImageUrl(result.image_path)" :alt="result.breed" class="result-image" />
             <div class="result-info">
               <div class="breed-name">{{ result.breed }}</div>
               <div class="confidence">置信度: {{ (result.confidence * 100).toFixed(2) }}%</div>
@@ -78,6 +78,24 @@ const isDragging = ref(false)
 const batchFiles = ref([])
 const batchResults = ref([])
 const batchRecognizing = ref(false)
+
+// 图片URL处理函数
+const getImageUrl = (path) => {
+  if (!path) return ''
+  if (path.startsWith('http')) return path
+  
+  // 如果是完整路径（如 E:/PetWise/backend/uploads/xxx.jpg），提取文件名
+  if (path.includes(':') || path.includes('\\') || path.includes('/uploads/')) {
+    const filename = path.split('/').pop().split('\\').pop()
+    return `/uploads/${filename}`
+  }
+  
+  if (path.startsWith('/')) {
+    return `/uploads${path}`
+  }
+  
+  return `/uploads/${path}`
+}
 
 const triggerFileInput = () => {
   fileInput.value?.click()

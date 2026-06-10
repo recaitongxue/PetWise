@@ -173,7 +173,7 @@
                 class="history-item"
               >
                 <div class="history-info">
-                  <img :src="`/uploads/${item.image_path}`" alt="识别图片" class="history-image" />
+                  <img :src="getImageUrl(item.image_path)" alt="识别图片" class="history-image" />
                   <div class="history-detail">
                     <span class="history-breed">{{ item.breed }}</span>
                     <span class="history-time">{{ item.created_at }}</span>
@@ -216,6 +216,24 @@ const correctionReason = ref('')
 const customBreed = ref('')
 const allBreeds = ref([])
 const currentRecognitionId = ref(null)
+
+// 图片URL处理函数
+const getImageUrl = (path) => {
+  if (!path) return ''
+  if (path.startsWith('http')) return path
+  
+  // 如果是完整路径（如 E:/PetWise/backend/uploads/xxx.jpg），提取文件名
+  if (path.includes(':') || path.includes('\\') || path.includes('/uploads/')) {
+    const filename = path.split('/').pop().split('\\').pop()
+    return `/uploads/${filename}`
+  }
+  
+  if (path.startsWith('/')) {
+    return `/uploads${path}`
+  }
+  
+  return `/uploads/${path}`
+}
 
 // 批量识别相关
 const batchMode = ref(false)

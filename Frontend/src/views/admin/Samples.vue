@@ -317,6 +317,12 @@ const getImageUrl = (path) => {
   if (!path) return ''
   if (path.startsWith('http')) return path
   
+  // 如果是完整路径（如 E:/PetWise/backend/uploads/xxx.jpg），提取文件名
+  if (path.includes(':') || path.includes('\\') || path.includes('/uploads/')) {
+    const filename = path.split('/').pop().split('\\').pop()
+    return `/uploads/${filename}`
+  }
+  
   if (path.startsWith('/')) {
     return `/uploads${path}`
   }
