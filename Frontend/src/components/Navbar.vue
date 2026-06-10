@@ -12,6 +12,8 @@
         <a href="/recognize" class="nav-link">宠物识别</a>
         <a href="/agent" class="nav-link">AI助手</a>
         <a href="/pets" class="nav-link">我的宠物</a>
+        <a href="/health" class="nav-link">健康记录</a>
+        <a href="/schedule" class="nav-link">日程提醒</a>
         <a href="/favorites" class="nav-link">我的收藏</a>
       </div>
       

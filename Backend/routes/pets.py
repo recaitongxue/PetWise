@@ -1,16 +1,14 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify
 from models.db import get_db
-from utils import log_action
+from utils import log_action, login_required, get_current_user_id
 
 pets_bp = Blueprint('pets', __name__)
 
 @pets_bp.route('/pets', methods=['GET'])
+@login_required
 def get_pets():
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('per_page', 10))
         offset = (page - 1) * per_page
@@ -40,12 +38,10 @@ def get_pets():
         return jsonify({"error": str(e)}), 500
 
 @pets_bp.route('/pets', methods=['POST'])
+@login_required
 def add_pet():
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         data = request.get_json()
 
         name = data.get('name')
@@ -74,12 +70,10 @@ def add_pet():
         return jsonify({"error": str(e)}), 500
 
 @pets_bp.route('/pets/<int:pet_id>', methods=['GET'])
+@login_required
 def get_pet(pet_id):
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
         
         pet = db.execute('SELECT * FROM pets WHERE id = ? AND user_id = ?', (pet_id, user_id)).fetchone()
@@ -92,12 +86,10 @@ def get_pet(pet_id):
         return jsonify({"error": str(e)}), 500
 
 @pets_bp.route('/pets/<int:pet_id>', methods=['PUT'])
+@login_required
 def update_pet(pet_id):
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         data = request.get_json()
         db = get_db()
 
@@ -141,12 +133,10 @@ def update_pet(pet_id):
         return jsonify({"error": str(e)}), 500
 
 @pets_bp.route('/pets/<int:pet_id>', methods=['DELETE'])
+@login_required
 def delete_pet(pet_id):
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         pet = db.execute('SELECT * FROM pets WHERE id = ? AND user_id = ?', (pet_id, user_id)).fetchone()

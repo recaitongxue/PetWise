@@ -2,10 +2,10 @@
 智能日程提醒路由
 支持宠物健康日历、疫苗接种、驱虫等提醒
 """
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta
 from models.db import get_db
-from utils import log_action
+from utils import log_action, login_required, get_current_user_id
 
 schedule_bp = Blueprint('schedule', __name__)
 
@@ -62,11 +62,9 @@ def generate_pet_schedule(pet_id, db):
     return schedules
 
 @schedule_bp.route('/pets/<int:pet_id>/schedule', methods=['POST'])
+@login_required
 def add_reminder(pet_id):
     """添加提醒"""
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
         data = request.get_json()
         reminder_type = data.get('reminder_type')
@@ -77,7 +75,7 @@ def add_reminder(pet_id):
         if not reminder_type or not title or not scheduled_date:
             return jsonify({"error": "reminder_type, title and scheduled_date are required"}), 400
 
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         # 验证宠物所有权
@@ -91,24 +89,25 @@ def add_reminder(pet_id):
         ''', (pet_id, reminder_type, title, description, scheduled_date))
         db.commit()
 
+        cursor = db.cursor()
+        reminder_id = cursor.execute('SELECT last_insert_rowid()').fetchone()[0]
+
         log_action(db, user_id, 'add_reminder', {'pet_id': pet_id, 'reminder_type': reminder_type})
 
         return jsonify({
             "success": True,
             "message": "Reminder added",
-            "reminder_id": db.lastrowid
+            "reminder_id": reminder_id
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @schedule_bp.route('/pets/<int:pet_id>/schedule', methods=['GET'])
+@login_required
 def get_reminders(pet_id):
     """获取宠物提醒"""
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         reminder_type = request.args.get('reminder_type')
         status = request.args.get('status', 'all')
         page = int(request.args.get('page', 1))
@@ -169,13 +168,11 @@ def get_reminders(pet_id):
         return jsonify({"error": str(e)}), 500
 
 @schedule_bp.route('/pets/<int:pet_id>/schedule/generate', methods=['POST'])
+@login_required
 def generate_schedule(pet_id):
     """生成智能日程"""
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         # 验证宠物所有权
@@ -207,13 +204,11 @@ def generate_schedule(pet_id):
         return jsonify({"error": str(e)}), 500
 
 @schedule_bp.route('/schedule/<int:reminder_id>/complete', methods=['PUT'])
+@login_required
 def complete_reminder(reminder_id):
     """完成提醒"""
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         # 验证提醒所有权
@@ -241,13 +236,11 @@ def complete_reminder(reminder_id):
         return jsonify({"error": str(e)}), 500
 
 @schedule_bp.route('/schedule/<int:reminder_id>', methods=['DELETE'])
+@login_required
 def delete_reminder(reminder_id):
     """删除提醒"""
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         # 验证提醒所有权
@@ -271,13 +264,11 @@ def delete_reminder(reminder_id):
         return jsonify({"error": str(e)}), 500
 
 @schedule_bp.route('/schedule/upcoming', methods=['GET'])
+@login_required
 def get_upcoming_reminders():
     """获取即将到来的提醒"""
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         days = int(request.args.get('days', 7))
         db = get_db()
 

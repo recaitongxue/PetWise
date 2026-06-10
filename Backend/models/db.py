@@ -326,6 +326,56 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_prompt_versions_active ON prompt_versions(prompt_type, is_active);
         CREATE INDEX IF NOT EXISTS idx_rate_limits_user ON rate_limits(user_id, endpoint);
         CREATE INDEX IF NOT EXISTS idx_system_metrics_type ON system_metrics(metric_type, recorded_at);
+        
+        -- 新增表：限流配置
+        CREATE TABLE IF NOT EXISTS rate_limit_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            endpoint TEXT NOT NULL UNIQUE,
+            daily_limit INTEGER DEFAULT 100,
+            hourly_limit INTEGER DEFAULT 20,
+            per_minute_limit INTEGER DEFAULT 5,
+            is_enabled INTEGER DEFAULT 1,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        -- 新增表：敏感词过滤规则
+        CREATE TABLE IF NOT EXISTS sensitive_words (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            word TEXT NOT NULL UNIQUE,
+            category TEXT DEFAULT 'medical',
+            severity TEXT DEFAULT 'medium',
+            is_enabled INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        -- 新增表：敏感内容阻断日志
+        CREATE TABLE IF NOT EXISTS sensitive_content_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            session_id TEXT,
+            blocked_content TEXT,
+            trigger_word TEXT,
+            response TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+        
+        -- 新增表：Prompt提示词模板
+        CREATE TABLE IF NOT EXISTS prompt_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            prompt_type TEXT NOT NULL,
+            content TEXT NOT NULL,
+            variables TEXT,
+            version INTEGER DEFAULT 1,
+            is_active INTEGER DEFAULT 1,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users(id)
+        );
     ''')
 
     if cursor.execute('SELECT COUNT(*) FROM breed_info').fetchone()[0] == 0:

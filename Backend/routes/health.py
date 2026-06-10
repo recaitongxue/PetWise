@@ -2,18 +2,16 @@
 宠物健康记录路由
 支持健康打卡、体重记录、饮食记录等功能
 """
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify
 from models.db import get_db
-from utils import log_action
+from utils import log_action, login_required, get_current_user_id
 
 health_bp = Blueprint('health', __name__)
 
 @health_bp.route('/pets/<int:pet_id>/health', methods=['POST'])
+@login_required
 def add_health_record(pet_id):
     """添加健康记录"""
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
         data = request.get_json()
         record_type = data.get('record_type')
@@ -28,7 +26,7 @@ def add_health_record(pet_id):
         if not record_type:
             return jsonify({"error": "record_type is required"}), 400
 
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         # 验证宠物所有权
@@ -42,24 +40,25 @@ def add_health_record(pet_id):
         ''', (pet_id, record_type, weight, food_amount, food_type, stool_status, activity_level, mood, notes))
         db.commit()
 
+        cursor = db.cursor()
+        record_id = cursor.execute('SELECT last_insert_rowid()').fetchone()[0]
+        
         log_action(db, user_id, 'add_health_record', {'pet_id': pet_id, 'record_type': record_type})
 
         return jsonify({
             "success": True,
             "message": "Health record added",
-            "record_id": db.lastrowid
+            "record_id": record_id
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @health_bp.route('/pets/<int:pet_id>/health', methods=['GET'])
+@login_required
 def get_health_records(pet_id):
     """获取宠物健康记录"""
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         record_type = request.args.get('record_type')
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('per_page', 20))
@@ -107,13 +106,11 @@ def get_health_records(pet_id):
         return jsonify({"error": str(e)}), 500
 
 @health_bp.route('/pets/<int:pet_id>/health/trends', methods=['GET'])
+@login_required
 def get_health_trends(pet_id):
     """获取健康趋势数据"""
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         # 验证宠物所有权
@@ -148,13 +145,11 @@ def get_health_trends(pet_id):
         return jsonify({"error": str(e)}), 500
 
 @health_bp.route('/pets/<int:pet_id>/health/<int:record_id>', methods=['DELETE'])
+@login_required
 def delete_health_record(pet_id, record_id):
     """删除健康记录"""
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         db = get_db()
 
         # 验证宠物所有权

@@ -1,6 +1,6 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify
 from models.db import get_db
-from utils import log_action
+from utils import log_action, login_required, get_current_user_id
 
 other_bp = Blueprint('other', __name__)
 
@@ -24,12 +24,10 @@ def get_breed_info(breed):
         return jsonify({"error": str(e)}), 500
 
 @other_bp.route('/feedback', methods=['POST'])
+@login_required
 def submit_feedback():
-    if 'user_id' not in session:
-        return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
-
     try:
-        user_id = session['user_id']
+        user_id = get_current_user_id()
         data = request.get_json()
 
         feedback_type = data.get('type')
