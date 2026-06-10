@@ -1,7 +1,7 @@
 import os
 import subprocess
 import sys
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 from config import Config
 from models.db import init_db
@@ -38,6 +38,10 @@ app.register_blueprint(health_bp, url_prefix='/api')
 app.register_blueprint(schedule_bp, url_prefix='/api')
 app.register_blueprint(model_admin_bp, url_prefix='/api')
 app.register_blueprint(sample_admin_bp, url_prefix='/api')
+
+@app.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 def start_ai_agent():
     """启动AI智能体服务"""

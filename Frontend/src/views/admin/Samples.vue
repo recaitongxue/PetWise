@@ -315,11 +315,13 @@ const handleExport = async () => {
 
 const getImageUrl = (path) => {
   if (!path) return ''
-  // 如果是相对路径，添加后端地址
-  if (!path.startsWith('http')) {
-    return `http://localhost:5000${path}`
+  if (path.startsWith('http')) return path
+  
+  if (path.startsWith('/')) {
+    return `/uploads${path}`
   }
-  return path
+  
+  return `/uploads/${path}`
 }
 
 onMounted(() => {

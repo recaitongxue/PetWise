@@ -135,7 +135,7 @@ def recognize():
         db.execute('''
             INSERT INTO recognitions (user_id, image_path, result, confidence, breed, top5)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (user_id, filepath, result['breed'], result['confidence'], result['breed'], json.dumps(result['top5'])))
+        ''', (user_id, filename, result['breed'], result['confidence'], result['breed'], json.dumps(result['top5'])))
         db.commit()
 
         recognition_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
@@ -185,7 +185,7 @@ def recognize_base64():
         db.execute('''
             INSERT INTO recognitions (user_id, image_path, result, confidence, breed, top5)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (user_id, filepath, result['breed'], result['confidence'], result['breed'], json.dumps(result['top5'])))
+        ''', (user_id, filename, result['breed'], result['confidence'], result['breed'], json.dumps(result['top5'])))
         db.commit()
 
         db.execute('UPDATE breed_info SET views = views + 1 WHERE breed = ?', (result['breed'],))
@@ -218,7 +218,7 @@ def recognize_history():
 
         db = get_db()
         histories = db.execute('''
-            SELECT id, result, confidence, breed, top5, created_at 
+            SELECT id, image_path, result, confidence, breed, top5, created_at 
             FROM recognitions 
             WHERE user_id = ? 
             ORDER BY created_at DESC 
@@ -410,11 +410,12 @@ def recognize_camera_stream():
 
                 result = predict_image(filepath)
                 result['frame_index'] = idx
+                result['image_path'] = filename
                 
                 db.execute('''
                     INSERT INTO recognitions (user_id, session_id, image_path, result, confidence, breed, top5)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (user_id, session_id, filepath, result['breed'], result['confidence'], result['breed'], json.dumps(result['top5'])))
+                ''', (user_id, session_id, filename, result['breed'], result['confidence'], result['breed'], json.dumps(result['top5'])))
                 
                 db.execute('UPDATE breed_info SET views = views + 1 WHERE breed = ?', (result['breed'],))
                 
@@ -518,7 +519,7 @@ def recognize_batch():
             db.execute('''
                 INSERT INTO recognitions (user_id, image_path, result, confidence, breed, top5)
                 VALUES (?, ?, ?, ?, ?, ?)
-            ''', (user_id, filepath, result['breed'], result['confidence'], result['breed'], json.dumps(result['top5'])))
+            ''', (user_id, filename, result['breed'], result['confidence'], result['breed'], json.dumps(result['top5'])))
             
             db.execute('UPDATE breed_info SET views = views + 1 WHERE breed = ?', (result['breed'],))
 
@@ -526,14 +527,15 @@ def recognize_batch():
                 "index": idx,
                 "filename": file.filename,
                 "success": True,
-                "result": result
+                "result": result,
+                "image_path": filename
             })
 
             if result['confidence'] < 0.5:
                 db.execute('''
                     INSERT INTO hard_examples (user_id, image_path, predicted_breed, confidence, is_low_confidence, collected_reason, status)
                     VALUES (?, ?, ?, ?, 1, ?, 'pending')
-                ''', (user_id, filepath, result['breed'], result['confidence'], 'low_confidence'))
+                ''', (user_id, filename, result['breed'], result['confidence'], 'low_confidence'))
 
         db.commit()
 

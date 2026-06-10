@@ -173,7 +173,7 @@
                 class="history-item"
               >
                 <div class="history-info">
-                  <img :src="item.image_url" alt="识别图片" class="history-image" />
+                  <img :src="`/uploads/${item.image_path}`" alt="识别图片" class="history-image" />
                   <div class="history-detail">
                     <span class="history-breed">{{ item.breed }}</span>
                     <span class="history-time">{{ item.created_at }}</span>

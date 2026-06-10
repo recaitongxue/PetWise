@@ -55,7 +55,7 @@
         <h3>识别结果</h3>
         <div class="results-grid">
           <div v-for="(result, index) in batchResults" :key="index" class="result-card">
-            <img :src="result.image_url" :alt="result.breed" class="result-image" />
+            <img :src="result.image_path ? `/uploads/${result.image_path}` : ''" :alt="result.breed" class="result-image" />
             <div class="result-info">
               <div class="breed-name">{{ result.breed }}</div>
               <div class="confidence">置信度: {{ (result.confidence * 100).toFixed(2) }}%</div>
