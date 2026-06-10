@@ -108,11 +108,18 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-  const { state } = useStore()
+  const token = localStorage.getItem('token')
+  let user = null
+  try {
+    user = JSON.parse(localStorage.getItem('user') || 'null')
+  } catch (e) {
+    console.error('Failed to parse user from localStorage:', e)
+  }
+  const isLoggedIn = !!token && user !== null
   
-  if (to.meta.requiresAuth && !state.isLoggedIn) {
+  if (to.meta.requiresAuth && !isLoggedIn) {
     next('/login')
-  } else if (to.meta.requiresAdmin && state.user?.role !== 'admin') {
+  } else if (to.meta.requiresAdmin && user?.role !== 'admin') {
     next('/')
   } else {
     next()

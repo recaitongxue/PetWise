@@ -32,9 +32,6 @@
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { authAPI } from '@/api/auth'
-import { useStore } from '@/store'
-
-const { setToken, setUser } = useStore()
 
 const loginForm = ref(null)
 const loading = ref(false)
@@ -54,16 +51,18 @@ const handleLogin = async () => {
   
   try {
     const response = await authAPI.login(form)
+    console.log('登录响应:', response)
     if (response.success) {
-      setToken(response.token)
-      setUser(response.user)
+      localStorage.setItem('token', response.token)
+      localStorage.setItem('user', JSON.stringify(response.user))
       ElMessage.success('登录成功')
       window.location.href = '/'
     } else {
       ElMessage.error(response.message || '登录失败')
     }
   } catch (error) {
-    ElMessage.error(error.response?.data?.error || '登录失败')
+    console.error('登录错误:', error)
+    ElMessage.error(error.response?.data?.error || error.message || '登录失败')
   } finally {
     loading.value = false
   }

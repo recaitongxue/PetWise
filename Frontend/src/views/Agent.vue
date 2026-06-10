@@ -210,7 +210,6 @@ import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import Navbar from '@/components/Navbar.vue'
 import { agentAPI } from '@/api/agent'
-import { petAPI } from '@/api/pets'
 import { petsAPI } from '@/api/pets'
 
 const currentMode = ref('chat')

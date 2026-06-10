@@ -1,27 +1,12 @@
 <template>
-  <div class="admin-page">
-    <Navbar />
-    
-    <div class="admin-container">
-      <aside class="sidebar">
-        <h2 class="sidebar-title">管理后台</h2>
-        <nav class="sidebar-nav">
-          <a href="/admin" class="nav-item">📊 仪表盘</a>
-          <a href="/admin/users" class="nav-item">👥 用户管理</a>
-          <a href="/admin/models" class="nav-item">🤖 大模型管理</a>
-          <a href="/admin/knowledge" class="nav-item active">📚 知识库</a>
-          <a href="/admin/samples" class="nav-item">🔍 难样本</a>
-          <a href="/admin/stats" class="nav-item">📈 数据统计</a>
-          <a href="/admin/rate-limits" class="nav-item">⚡ 限流配置</a>
-          <a href="/admin/sensitive-words" class="nav-item">🛡️ 敏感词</a>
-          <a href="/admin/prompts" class="nav-item">💭 Prompt模板</a>
-          <a href="/admin/feedback" class="nav-item">💬 用户反馈</a>
-          <a href="/admin/announcements" class="nav-item">📢 公告管理</a>
-        </nav>
-      </aside>
-      
-      <main class="main-content">
-        <h1>📚 知识库管理</h1>
+  <AdminLayout>
+    <div class="knowledge-page">
+      <div class="page-header">
+        <div class="header-title">
+          <h1>📚 知识库管理</h1>
+          <p class="subtitle">管理和维护宠物知识条目</p>
+        </div>
+      </div>
         
         <div class="add-section">
           <h3>添加知识条目</h3>
@@ -145,15 +130,14 @@
             <el-button type="primary" @click="handleSave">保存</el-button>
           </div>
         </el-dialog>
-      </main>
     </div>
-  </div>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import Navbar from '@/components/Navbar.vue'
+import AdminLayout from '@/components/AdminLayout.vue'
 import { adminAPI } from '@/api/admin'
 
 const knowledgeList = ref([])
@@ -303,81 +287,43 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.admin-page {
-  min-height: 100vh;
+.knowledge-page {
   background: #f5f7fa;
 }
 
-.admin-container {
-  display: flex;
-  gap: 20px;
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 20px;
+.page-header {
+  margin-bottom: 30px;
 }
 
-.sidebar {
-  width: 220px;
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+.header-title h1 {
+  margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 600;
+  color: #2c3e50;
 }
 
-.sidebar-title {
-  font-size: 18px;
-  margin: 0 0 20px 0;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #eee;
-}
-
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.nav-item {
-  padding: 10px 15px;
-  text-decoration: none;
-  color: #666;
-  border-radius: 8px;
-  transition: all 0.2s;
+.subtitle {
+  margin: 0;
+  color: #7f8c8d;
   font-size: 14px;
-}
-
-.nav-item:hover {
-  background: #f5f7fa;
-}
-
-.nav-item.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.main-content {
-  flex: 1;
-}
-
-.main-content h1 {
-  margin: 0 0 20px 0;
-  font-size: 24px;
 }
 
 .add-section,
 .filter-section,
 .list-section {
   background: white;
-  border-radius: 12px;
-  padding: 25px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-  margin-bottom: 20px;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin-bottom: 25px;
 }
 
 .add-section h3,
 .filter-section h3 {
   margin: 0 0 20px 0;
-  font-size: 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c3e50;
 }
 
 .knowledge-form {

@@ -1,10 +1,11 @@
 <template>
-  <div class="admin-page">
-    <Navbar />
-    
-    <div class="container">
+  <AdminLayout>
+    <div class="corrections-page">
       <div class="page-header">
-        <h1 class="page-title">🔄 用户纠错记录</h1>
+        <div class="header-title">
+          <h1>🔄 用户纠错记录</h1>
+          <p class="subtitle">审核和管理用户提交的识别纠错请求</p>
+        </div>
       </div>
       
       <div class="filter-bar">
@@ -114,13 +115,14 @@
         </div>
       </div>
     </el-dialog>
-  </div>
+    </div>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import Navbar from '@/components/Navbar.vue'
+import AdminLayout from '@/components/AdminLayout.vue'
 import axios from '@/api/axios'
 
 const corrections = ref([])
@@ -218,45 +220,47 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.admin-page {
-  min-height: 100vh;
+.corrections-page {
   background: #f5f7fa;
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 30px 20px;
-}
-
 .page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 30px;
 }
 
-.page-title {
-  font-size: 24px;
+.header-title h1 {
+  margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.subtitle {
+  margin: 0;
+  color: #7f8c8d;
+  font-size: 14px;
 }
 
 .filter-bar {
   display: flex;
   gap: 15px;
-  margin-bottom: 20px;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
 }
 
 .filter-bar select, .filter-bar input {
-  padding: 10px 15px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  padding: 12px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  min-width: 160px;
 }
 
 .corrections-list {
   background: white;
   border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 table {

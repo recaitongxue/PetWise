@@ -1,78 +1,86 @@
 <template>
-  <div class="admin-page">
-    <Navbar />
-    
-    <div class="admin-container">
-      <aside class="sidebar">
-        <h2 class="sidebar-title">管理后台</h2>
-        <nav class="sidebar-nav">
-          <a href="/admin" class="nav-item" :class="{ active: $route.path === '/admin' }">📊 仪表盘</a>
-          <a href="/admin/users" class="nav-item" :class="{ active: $route.path === '/admin/users' }">👥 用户管理</a>
-          <a href="/admin/models" class="nav-item" :class="{ active: $route.path === '/admin/models' }">🤖 大模型管理</a>
-          <a href="/admin/knowledge" class="nav-item" :class="{ active: $route.path === '/admin/knowledge' }">📚 知识库</a>
-          <a href="/admin/samples" class="nav-item" :class="{ active: $route.path === '/admin/samples' }">🔍 难样本</a>
-          <a href="/admin/stats" class="nav-item" :class="{ active: $route.path === '/admin/stats' }">📈 数据统计</a>
-          <a href="/admin/logs" class="nav-item" :class="{ active: $route.path === '/admin/logs' }">📋 系统日志</a>
-          <a href="/admin/rate-limits" class="nav-item" :class="{ active: $route.path === '/admin/rate-limits' }">⚡ 限流配置</a>
-          <a href="/admin/sensitive-words" class="nav-item" :class="{ active: $route.path === '/admin/sensitive-words' }">🛡️ 敏感词</a>
-          <a href="/admin/prompts" class="nav-item" :class="{ active: $route.path === '/admin/prompts' }">💭 Prompt模板</a>
-          <a href="/admin/corrections" class="nav-item" :class="{ active: $route.path === '/admin/corrections' }">🔄 纠错记录</a>
-          <a href="/admin/feedback" class="nav-item" :class="{ active: $route.path === '/admin/feedback' }">💬 用户反馈</a>
-          <a href="/admin/announcements" class="nav-item" :class="{ active: $route.path === '/admin/announcements' }">📢 公告管理</a>
-        </nav>
-      </aside>
-      
-      <main class="main-content">
+  <AdminLayout>
+    <div class="dashboard">
+      <div class="page-header">
         <h1>📊 管理仪表盘</h1>
-        
-        <div class="stats-cards">
-          <div class="stat-card">
-            <div class="stat-icon">👥</div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.total_users || 0 }}</span>
-              <span class="stat-label">总用户数</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">🐾</div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.total_pets || 0 }}</span>
-              <span class="stat-label">宠物总数</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">📸</div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.total_recognitions || 0 }}</span>
-              <span class="stat-label">识别次数</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">💬</div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.pending_feedback || 0 }}</span>
-              <span class="stat-label">待处理反馈</span>
-            </div>
+        <p class="page-subtitle">欢迎回来，管理员！查看系统概览数据</p>
+      </div>
+      
+      <div class="stats-cards">
+        <div class="stat-card">
+          <div class="stat-icon bg-blue">👥</div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.total_users || 0 }}</span>
+            <span class="stat-label">总用户数</span>
           </div>
         </div>
-        
-        <div class="quick-actions">
-          <h3>快捷操作</h3>
-          <div class="action-buttons">
-            <button @click="goTo('/admin/users')" class="action-btn">管理用户</button>
-            <button @click="goTo('/admin/announcements')" class="action-btn">发布公告</button>
-            <button @click="goTo('/admin/feedback')" class="action-btn">查看反馈</button>
-            <button @click="goTo('/admin/stats')" class="action-btn">查看统计</button>
+        <div class="stat-card">
+          <div class="stat-icon bg-purple">🐾</div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.total_pets || 0 }}</span>
+            <span class="stat-label">宠物总数</span>
           </div>
         </div>
-      </main>
+        <div class="stat-card">
+          <div class="stat-icon bg-green">📸</div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.total_recognitions || 0 }}</span>
+            <span class="stat-label">识别次数</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon bg-orange">💬</div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.pending_feedback || 0 }}</span>
+            <span class="stat-label">待处理反馈</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon bg-red">🔄</div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.pending_corrections || 0 }}</span>
+            <span class="stat-label">待审核纠错</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon bg-cyan">📢</div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.active_announcements || 0 }}</span>
+            <span class="stat-label">有效公告</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="quick-actions">
+        <h3>快捷操作</h3>
+        <div class="action-buttons">
+          <router-link to="/admin/users" class="action-btn">
+            <span>👥 管理用户</span>
+          </router-link>
+          <router-link to="/admin/announcements" class="action-btn">
+            <span>📢 发布公告</span>
+          </router-link>
+          <router-link to="/admin/feedback" class="action-btn">
+            <span>💬 查看反馈</span>
+          </router-link>
+          <router-link to="/admin/stats" class="action-btn">
+            <span>📈 查看统计</span>
+          </router-link>
+          <router-link to="/admin/corrections" class="action-btn">
+            <span>🔄 审核纠错</span>
+          </router-link>
+          <router-link to="/admin/logs" class="action-btn">
+            <span>📋 系统日志</span>
+          </router-link>
+        </div>
+      </div>
     </div>
-  </div>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import Navbar from '@/components/Navbar.vue'
+import AdminLayout from '@/components/AdminLayout.vue'
 import { adminAPI } from '@/api/admin'
 
 const stats = ref({})
@@ -88,95 +96,88 @@ const loadStats = async () => {
   }
 }
 
-const goTo = (url) => {
-  window.location.href = url
-}
-
 onMounted(() => {
   loadStats()
 })
 </script>
 
 <style scoped>
-.admin-page {
-  min-height: 100vh;
+.dashboard {
   background: #f5f7fa;
 }
 
-.admin-container {
-  display: flex;
-  gap: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
+.page-header {
+  margin-bottom: 30px;
 }
 
-.sidebar {
-  width: 200px;
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+.page-header h1 {
+  margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 600;
+  color: #2c3e50;
 }
 
-.sidebar-title {
-  font-size: 18px;
-  margin: 0 0 20px 0;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #eee;
-}
-
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.nav-item {
-  padding: 10px 15px;
-  text-decoration: none;
-  color: #666;
-  border-radius: 8px;
-  transition: all 0.2s;
-}
-
-.nav-item:hover {
-  background: #f5f7fa;
-}
-
-.nav-item.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.main-content {
-  flex: 1;
-}
-
-.main-content h1 {
-  margin: 0 0 20px 0;
-  font-size: 24px;
+.page-subtitle {
+  margin: 0;
+  color: #7f8c8d;
+  font-size: 14px;
 }
 
 .stats-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
   margin-bottom: 30px;
 }
 
 .stat-card {
   background: white;
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 16px;
+  padding: 24px;
   display: flex;
   align-items: center;
-  gap: 15px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  gap: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
 }
 
 .stat-icon {
-  font-size: 36px;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+}
+
+.stat-icon.bg-blue {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.stat-icon.bg-purple {
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+}
+
+.stat-icon.bg-green {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.stat-icon.bg-orange {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.stat-icon.bg-red {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.stat-icon.bg-cyan {
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
 }
 
 .stat-info {
@@ -185,45 +186,53 @@ onMounted(() => {
 }
 
 .stat-value {
-  font-size: 24px;
-  font-weight: 600;
-  color: #333;
+  font-size: 32px;
+  font-weight: 700;
+  color: #2c3e50;
 }
 
 .stat-label {
-  font-size: 12px;
-  color: #999;
+  font-size: 13px;
+  color: #7f8c8d;
+  margin-top: 4px;
 }
 
 .quick-actions {
   background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .quick-actions h3 {
-  margin: 0 0 15px 0;
-  font-size: 16px;
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c3e50;
 }
 
 .action-buttons {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
 }
 
 .action-btn {
-  padding: 12px;
-  background: #f5f7fa;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
+  padding: 14px 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  text-decoration: none;
+  color: #334155;
   font-size: 14px;
+  font-weight: 500;
+  text-align: center;
   transition: all 0.2s;
 }
 
 .action-btn:hover {
-  background: #eee;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: transparent;
 }
 </style>
