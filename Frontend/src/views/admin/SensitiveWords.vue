@@ -1,11 +1,14 @@
 <template>
-  <div class="admin-page">
-    <Navbar />
-    
-    <div class="container">
+  <AdminLayout>
+    <div class="sensitive-words-page">
       <div class="page-header">
-        <h1 class="page-title">🛡️ 敏感词管理</h1>
-        <button class="add-btn" @click="showAddModal = true">+ 添加敏感词</button>
+        <div class="header-title">
+          <h1>🛡️ 敏感词管理</h1>
+          <p class="subtitle">管理和过滤敏感词汇内容</p>
+        </div>
+        <div class="header-actions">
+          <button class="add-btn" @click="showAddModal = true">+ 添加敏感词</button>
+        </div>
       </div>
       
       <div class="filter-bar">
@@ -102,13 +105,13 @@
         <el-button type="primary" @click="submitWord">添加</el-button>
       </div>
     </el-dialog>
-  </div>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import Navbar from '@/components/Navbar.vue'
+import AdminLayout from '@/components/AdminLayout.vue'
 import axios from '@/api/axios'
 
 const words = ref([])

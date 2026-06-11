@@ -1,245 +1,227 @@
 <template>
-  <div class="admin-page">
-    <Navbar />
-    
-    <div class="admin-container">
-      <aside class="sidebar">
-        <h2 class="sidebar-title">管理后台</h2>
-        <nav class="sidebar-nav">
-          <a href="/admin" class="nav-item">📊 仪表盘</a>
-          <a href="/admin/users" class="nav-item">👥 用户管理</a>
-          <a href="/admin/models" class="nav-item">🤖 大模型管理</a>
-          <a href="/admin/knowledge" class="nav-item">📚 知识库</a>
-          <a href="/admin/samples" class="nav-item">🔍 难样本</a>
-          <a href="/admin/stats" class="nav-item active">📈 数据统计</a>
-          <a href="/admin/rate-limits" class="nav-item">⚡ 限流配置</a>
-          <a href="/admin/sensitive-words" class="nav-item">🛡️ 敏感词</a>
-          <a href="/admin/prompts" class="nav-item">💭 Prompt模板</a>
-          <a href="/admin/feedback" class="nav-item">💬 用户反馈</a>
-          <a href="/admin/announcements" class="nav-item">📢 公告管理</a>
-        </nav>
-      </aside>
-      
-      <main class="main-content">
-        <div class="page-header">
+  <AdminLayout>
+    <div class="stats-page">
+      <div class="page-header">
+        <div class="header-title">
           <h1>📈 数据统计</h1>
-          <el-button type="primary" @click="loadStats" :loading="loading">
-            🔄 刷新数据
-          </el-button>
+          <p class="subtitle">查看系统运行数据和统计信息</p>
         </div>
+        <el-button type="primary" @click="loadStats" :loading="loading" class="refresh-btn">
+          🔄 刷新数据
+        </el-button>
+      </div>
         
-        <!-- 实时监控卡片 -->
-        <div class="monitoring-section">
-          <h2>🔴 实时监控</h2>
-          <div class="monitoring-grid">
-            <div class="monitor-card">
-              <div class="monitor-header">
-                <span class="monitor-icon">👥</span>
-                <span class="monitor-title">今日活跃用户</span>
-              </div>
-              <div class="monitor-value">{{ realtimeStats.today?.today_users || 0 }}</div>
-              <div class="monitor-trend">
-                <span class="trend-label">较昨日</span>
-                <span :class="['trend-value', realtimeStats.today?.today_users >= 10 ? 'positive' : 'negative']">
-                  {{ realtimeStats.today?.today_users >= 10 ? '📈' : '📉' }}
+      <!-- 实时监控卡片 -->
+      <div class="monitoring-section">
+        <h2>🔴 实时监控</h2>
+        <div class="monitoring-grid">
+          <div class="monitor-card">
+            <div class="monitor-header">
+              <span class="monitor-icon">👥</span>
+              <span class="monitor-title">今日活跃用户</span>
+            </div>
+            <div class="monitor-value">{{ realtimeStats.today?.today_users || 0 }}</div>
+            <div class="monitor-trend">
+              <span class="trend-label">较昨日</span>
+              <span :class="['trend-value', realtimeStats.today?.today_users >= 10 ? 'positive' : 'negative']">
+                {{ realtimeStats.today?.today_users >= 10 ? '📈' : '📉' }}
+              </span>
+            </div>
+          </div>
+          
+          <div class="monitor-card">
+            <div class="monitor-header">
+              <span class="monitor-icon">📸</span>
+              <span class="monitor-title">今日识别次数</span>
+            </div>
+            <div class="monitor-value">{{ realtimeStats.today?.today_recognitions || 0 }}</div>
+            <div class="monitor-subtitle">总请求: {{ realtimeStats.today?.today_requests || 0 }}</div>
+          </div>
+          
+          <div class="monitor-card">
+            <div class="monitor-header">
+              <span class="monitor-icon">🤖</span>
+              <span class="monitor-title">今日AI对话</span>
+            </div>
+            <div class="monitor-value">{{ realtimeStats.today?.today_chats || 0 }}</div>
+            <div class="monitor-subtitle">次</div>
+          </div>
+          
+          <div class="monitor-card">
+            <div class="monitor-header">
+              <span class="monitor-icon">💻</span>
+              <span class="monitor-title">CPU使用率</span>
+            </div>
+            <div class="monitor-value">{{ realtimeStats.system?.cpu_usage || 0 }}%</div>
+            <div class="progress-bar">
+              <div 
+                class="progress-fill" 
+                :style="{ width: (realtimeStats.system?.cpu_usage || 0) + '%' }"
+                :class="{ 'high': (realtimeStats.system?.cpu_usage || 0) > 80 }"
+              ></div>
+            </div>
+          </div>
+          
+          <div class="monitor-card">
+            <div class="monitor-header">
+              <span class="monitor-icon">🧠</span>
+              <span class="monitor-title">内存使用</span>
+            </div>
+            <div class="monitor-value">{{ realtimeStats.system?.memory_usage || 0 }}%</div>
+            <div class="progress-bar">
+              <div 
+                class="progress-fill" 
+                :style="{ width: (realtimeStats.system?.memory_usage || 0) + '%' }"
+                :class="{ 'high': (realtimeStats.system?.memory_usage || 0) > 80 }"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 基础统计卡片 -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">👥</div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.total_users || 0 }}</span>
+            <span class="stat-label">总用户数</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🐾</div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.total_pets || 0 }}</span>
+            <span class="stat-label">宠物总数</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📸</div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.total_recognitions || 0 }}</span>
+            <span class="stat-label">识别次数</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">❤️</div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.total_favorites || 0 }}</span>
+            <span class="stat-label">收藏总数</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">💬</div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.total_comments || 0 }}</span>
+            <span class="stat-label">评论总数</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🤖</div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.total_chats || 0 }}</span>
+            <span class="stat-label">AI对话次数</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 7天趋势图 -->
+      <div class="section">
+        <h3>📊 近7天请求趋势</h3>
+        <div v-if="realtimeStats.weekly_trend?.length" class="chart-container">
+          <div class="line-chart">
+            <div class="chart-y-axis">
+              <span v-for="n in 5" :key="n">{{ ((5 - n + 1) * maxWeeklyCount / 5).toFixed(0) }}</span>
+            </div>
+            <div class="chart-content">
+              <svg class="chart-svg" viewBox="0 0 600 200" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style="stop-color:#667eea;stop-opacity:0.3" />
+                    <stop offset="100%" style="stop-color:#667eea;stop-opacity:0" />
+                  </linearGradient>
+                </defs>
+                <path 
+                  :d="areaPath" 
+                  fill="url(#lineGradient)"
+                />
+                <path 
+                  :d="linePath" 
+                  fill="none"
+                  stroke="#667eea"
+                  stroke-width="2"
+                />
+                <circle 
+                  v-for="(point, index) in chartPoints" 
+                  :key="index"
+                  :cx="point.x" 
+                  :cy="point.y" 
+                  r="4"
+                  fill="#667eea"
+                  class="chart-point"
+                />
+              </svg>
+              <div class="chart-x-axis">
+                <span v-for="(item, index) in realtimeStats.weekly_trend" :key="index">
+                  {{ formatDate(item.date) }}
                 </span>
               </div>
             </div>
-            
-            <div class="monitor-card">
-              <div class="monitor-header">
-                <span class="monitor-icon">📸</span>
-                <span class="monitor-title">今日识别次数</span>
-              </div>
-              <div class="monitor-value">{{ realtimeStats.today?.today_recognitions || 0 }}</div>
-              <div class="monitor-subtitle">总请求: {{ realtimeStats.today?.today_requests || 0 }}</div>
-            </div>
-            
-            <div class="monitor-card">
-              <div class="monitor-header">
-                <span class="monitor-icon">🤖</span>
-                <span class="monitor-title">今日AI对话</span>
-              </div>
-              <div class="monitor-value">{{ realtimeStats.today?.today_chats || 0 }}</div>
-              <div class="monitor-subtitle">次</div>
-            </div>
-            
-            <div class="monitor-card">
-              <div class="monitor-header">
-                <span class="monitor-icon">💻</span>
-                <span class="monitor-title">CPU使用率</span>
-              </div>
-              <div class="monitor-value">{{ realtimeStats.system?.cpu_usage || 0 }}%</div>
-              <div class="progress-bar">
-                <div 
-                  class="progress-fill" 
-                  :style="{ width: (realtimeStats.system?.cpu_usage || 0) + '%' }"
-                  :class="{ 'high': (realtimeStats.system?.cpu_usage || 0) > 80 }"
-                ></div>
-              </div>
-            </div>
-            
-            <div class="monitor-card">
-              <div class="monitor-header">
-                <span class="monitor-icon">🧠</span>
-                <span class="monitor-title">内存使用</span>
-              </div>
-              <div class="monitor-value">{{ realtimeStats.system?.memory_usage || 0 }}%</div>
-              <div class="progress-bar">
-                <div 
-                  class="progress-fill" 
-                  :style="{ width: (realtimeStats.system?.memory_usage || 0) + '%' }"
-                  :class="{ 'high': (realtimeStats.system?.memory_usage || 0) > 80 }"
-                ></div>
-              </div>
-            </div>
           </div>
         </div>
-        
-        <!-- 基础统计卡片 -->
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon">👥</div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.total_users || 0 }}</span>
-              <span class="stat-label">总用户数</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">🐾</div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.total_pets || 0 }}</span>
-              <span class="stat-label">宠物总数</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">📸</div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.total_recognitions || 0 }}</span>
-              <span class="stat-label">识别次数</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">❤️</div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.total_favorites || 0 }}</span>
-              <span class="stat-label">收藏总数</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">💬</div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.total_comments || 0 }}</span>
-              <span class="stat-label">评论总数</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">🤖</div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.total_chats || 0 }}</span>
-              <span class="stat-label">AI对话次数</span>
-            </div>
-          </div>
-        </div>
-        
-        <!-- 7天趋势图 -->
-        <div class="section">
-          <h3>📊 近7天请求趋势</h3>
-          <div v-if="realtimeStats.weekly_trend?.length" class="chart-container">
-            <div class="line-chart">
-              <div class="chart-y-axis">
-                <span v-for="n in 5" :key="n">{{ ((5 - n + 1) * maxWeeklyCount / 5).toFixed(0) }}</span>
-              </div>
-              <div class="chart-content">
-                <svg class="chart-svg" viewBox="0 0 600 200" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" style="stop-color:#667eea;stop-opacity:0.3" />
-                      <stop offset="100%" style="stop-color:#667eea;stop-opacity:0" />
-                    </linearGradient>
-                  </defs>
-                  <path 
-                    :d="areaPath" 
-                    fill="url(#lineGradient)"
-                  />
-                  <path 
-                    :d="linePath" 
-                    fill="none"
-                    stroke="#667eea"
-                    stroke-width="2"
-                  />
-                  <circle 
-                    v-for="(point, index) in chartPoints" 
-                    :key="index"
-                    :cx="point.x" 
-                    :cy="point.y" 
-                    r="4"
-                    fill="#667eea"
-                    class="chart-point"
-                  />
-                </svg>
-                <div class="chart-x-axis">
-                  <span v-for="(item, index) in realtimeStats.weekly_trend" :key="index">
-                    {{ formatDate(item.date) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div v-else class="empty-state">暂无数据</div>
-        </div>
-        
-        <!-- 每日识别统计 -->
-        <div class="section">
-          <h3>📸 每日识别统计</h3>
-          <div v-if="stats.daily_recognitions?.length" class="chart-container">
-            <div class="bar-chart">
-              <div 
-                v-for="(item, index) in stats.daily_recognitions" 
-                :key="index"
-                class="bar-item"
-              >
-                <div 
-                  class="bar" 
-                  :style="{ height: getBarHeight(item.count) + '%' }"
-                ></div>
-                <span class="bar-label">{{ formatDate(item.date) }}</span>
-                <span class="bar-value">{{ item.count }}</span>
-              </div>
-            </div>
-          </div>
-          <div v-else class="empty-state">暂无数据</div>
-        </div>
-        
-        <!-- 近期注册用户 -->
-        <div class="section">
-          <h3>👥 近期注册用户</h3>
-          <div v-if="stats.recent_registrations?.length" class="user-list">
+        <div v-else class="empty-state">暂无数据</div>
+      </div>
+      
+      <!-- 每日识别统计 -->
+      <div class="section">
+        <h3>📸 每日识别统计</h3>
+        <div v-if="stats.daily_recognitions?.length" class="chart-container">
+          <div class="bar-chart">
             <div 
-              v-for="user in stats.recent_registrations" 
-              :key="user.id" 
-              class="user-item"
+              v-for="(item, index) in stats.daily_recognitions" 
+              :key="index"
+              class="bar-item"
             >
-              <div class="user-info">
-                <span class="user-avatar">{{ user.username.charAt(0).toUpperCase() }}</span>
-                <div>
-                  <div class="user-name">{{ user.username }}</div>
-                  <div class="user-email">{{ user.email }}</div>
-                </div>
-              </div>
-              <span class="user-time">{{ formatDateTime(user.created_at) }}</span>
+              <div 
+                class="bar" 
+                :style="{ height: getBarHeight(item.count) + '%' }"
+              ></div>
+              <span class="bar-label">{{ formatDate(item.date) }}</span>
+              <span class="bar-value">{{ item.count }}</span>
             </div>
           </div>
-          <div v-else class="empty-state">暂无数据</div>
         </div>
-      </main>
+        <div v-else class="empty-state">暂无数据</div>
+      </div>
+      
+      <!-- 近期注册用户 -->
+      <div class="section">
+        <h3>👥 近期注册用户</h3>
+        <div v-if="stats.recent_registrations?.length" class="user-list">
+          <div 
+            v-for="user in stats.recent_registrations" 
+            :key="user.id" 
+            class="user-item"
+          >
+            <div class="user-info">
+              <span class="user-avatar">{{ user.username.charAt(0).toUpperCase() }}</span>
+              <div>
+                <div class="user-name">{{ user.username }}</div>
+                <div class="user-email">{{ user.email }}</div>
+              </div>
+            </div>
+            <span class="user-time">{{ formatDateTime(user.created_at) }}</span>
+          </div>
+        </div>
+        <div v-else class="empty-state">暂无数据</div>
+      </div>
     </div>
-  </div>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import Navbar from '@/components/Navbar.vue'
+import AdminLayout from '@/components/AdminLayout.vue'
 import { adminAPI } from '@/api/admin'
 
 const stats = ref({})
@@ -256,10 +238,12 @@ const loadStats = async () => {
     ])
     
     if (basicRes.success) {
-      stats.value = basicRes.data || {}
+      // getStats() 没有 data 包装层，直接使用响应对象
+      stats.value = basicRes
     }
     
     if (realtimeRes.success) {
+      // getRealtimeStats() 有 data 包装层
       realtimeStats.value = realtimeRes.data || {}
     }
   } catch (error) {
@@ -346,87 +330,50 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.admin-page {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.admin-container {
-  display: flex;
-  gap: 20px;
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-.sidebar {
-  width: 250px;
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  height: fit-content;
-}
-
-.sidebar-title {
-  font-size: 18px;
-  margin: 0 0 20px 0;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #eee;
-}
-
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.nav-item {
-  padding: 10px 15px;
-  text-decoration: none;
-  color: #666;
-  border-radius: 8px;
-  transition: all 0.2s;
-}
-
-.nav-item:hover {
+.stats-page {
   background: #f5f7fa;
-}
-
-.nav-item.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.main-content {
-  flex: 1;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 15px;
 }
 
-.page-header h1 {
-  margin: 0;
-  color: white;
+.header-title h1 {
+  margin: 0 0 8px 0;
   font-size: 28px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.subtitle {
+  margin: 0;
+  color: #7f8c8d;
+  font-size: 14px;
+}
+
+.refresh-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
 }
 
 .monitoring-section {
   background: white;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 25px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .monitoring-section h2 {
   margin: 0 0 20px 0;
   font-size: 18px;
-  color: #333;
+  font-weight: 600;
+  color: #2c3e50;
 }
 
 .monitoring-grid {
@@ -439,6 +386,11 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   border-radius: 12px;
   padding: 20px;
+  transition: transform 0.2s;
+}
+
+.monitor-card:hover {
+  transform: translateY(-2px);
 }
 
 .monitor-header {
@@ -460,13 +412,13 @@ onUnmounted(() => {
 .monitor-value {
   font-size: 32px;
   font-weight: 700;
-  color: #333;
+  color: #2c3e50;
   margin-bottom: 5px;
 }
 
 .monitor-subtitle {
   font-size: 12px;
-  color: #999;
+  color: #94a3b8;
 }
 
 .monitor-trend {
@@ -477,12 +429,20 @@ onUnmounted(() => {
 }
 
 .trend-label {
-  color: #999;
+  color: #94a3b8;
+}
+
+.trend-value.positive {
+  color: #22c55e;
+}
+
+.trend-value.negative {
+  color: #ef4444;
 }
 
 .progress-bar {
   height: 6px;
-  background: #ddd;
+  background: #e2e8f0;
   border-radius: 3px;
   overflow: hidden;
   margin-top: 10px;

@@ -136,7 +136,16 @@
                   :label="breed" 
                   :value="breed"
                 />
+                <el-option label="🔄 其他（手动输入）" value="__custom__" />
               </el-select>
+              
+              <div v-if="correctedBreed === '__custom__'" class="custom-breed-input">
+                <el-input 
+                  v-model="customBreed"
+                  placeholder="请输入实际品种名称"
+                />
+              </div>
+              
               <el-input 
                 v-model="correctionReason"
                 type="textarea"
@@ -164,7 +173,7 @@
                 class="history-item"
               >
                 <div class="history-info">
-                  <img :src="item.image_url" alt="识别图片" class="history-image" />
+                  <img :src="getImageUrl(item.image_path)" alt="识别图片" class="history-image" />
                   <div class="history-detail">
                     <span class="history-breed">{{ item.breed }}</span>
                     <span class="history-time">{{ item.created_at }}</span>
@@ -204,8 +213,27 @@ const showHistory = ref(false)
 const history = ref([])
 const correctedBreed = ref('')
 const correctionReason = ref('')
+const customBreed = ref('')
 const allBreeds = ref([])
 const currentRecognitionId = ref(null)
+
+// 图片URL处理函数
+const getImageUrl = (path) => {
+  if (!path) return ''
+  if (path.startsWith('http')) return path
+  
+  // 如果是完整路径（如 E:/PetWise/backend/uploads/xxx.jpg），提取文件名
+  if (path.includes(':') || path.includes('\\') || path.includes('/uploads/')) {
+    const filename = path.split('/').pop().split('\\').pop()
+    return `/uploads/${filename}`
+  }
+  
+  if (path.startsWith('/')) {
+    return `/uploads${path}`
+  }
+  
+  return `/uploads/${path}`
+}
 
 // 批量识别相关
 const batchMode = ref(false)
@@ -293,9 +321,19 @@ const handleBatchRecognize = () => {
 }
 
 const submitCorrection = async () => {
-  if (!correctedBreed.value) {
+  let actualBreed = ''
+  
+  if (correctedBreed.value === '__custom__') {
+    if (!customBreed.value.trim()) {
+      ElMessage.error('请输入实际品种名称')
+      return
+    }
+    actualBreed = customBreed.value.trim()
+  } else if (!correctedBreed.value) {
     ElMessage.error('请选择正确品种')
     return
+  } else {
+    actualBreed = correctedBreed.value
   }
   
   if (!currentRecognitionId.value) {
@@ -306,13 +344,14 @@ const submitCorrection = async () => {
   try {
     const response = await recognizeAPI.correctRecognition(
       currentRecognitionId.value,
-      correctedBreed.value,
+      actualBreed,
       correctionReason.value
     )
     
     if (response.success) {
       ElMessage.success('感谢您的反馈！')
       correctedBreed.value = ''
+      customBreed.value = ''
       correctionReason.value = ''
     } else {
       ElMessage.error(response.message || '提交失败，请稍后重试')

@@ -1,35 +1,18 @@
 <template>
-  <div class="admin-page">
-    <Navbar />
-    
-    <div class="admin-container">
-      <aside class="sidebar">
-        <h2 class="sidebar-title">管理后台</h2>
-        <nav class="sidebar-nav">
-          <a href="/admin" class="nav-item">📊 仪表盘</a>
-          <a href="/admin/users" class="nav-item">👥 用户管理</a>
-          <a href="/admin/models" class="nav-item">🤖 大模型管理</a>
-          <a href="/admin/knowledge" class="nav-item">📚 知识库</a>
-          <a href="/admin/samples" class="nav-item">🔍 难样本</a>
-          <a href="/admin/stats" class="nav-item">📈 数据统计</a>
-          <a href="/admin/logs" class="nav-item active">📋 系统日志</a>
-          <a href="/admin/rate-limits" class="nav-item">⚡ 限流配置</a>
-          <a href="/admin/sensitive-words" class="nav-item">🛡️ 敏感词</a>
-          <a href="/admin/prompts" class="nav-item">💭 Prompt模板</a>
-          <a href="/admin/feedback" class="nav-item">💬 用户反馈</a>
-          <a href="/admin/announcements" class="nav-item">📢 公告管理</a>
-        </nav>
-      </aside>
-      
-      <main class="main-content">
-        <div class="page-header">
+  <AdminLayout>
+    <div class="logs-page">
+      <div class="page-header">
+        <div class="header-title">
           <h1>📋 系统日志</h1>
-          <div class="header-actions">
-            <button @click="loadLogs" class="refresh-btn">🔄 刷新</button>
-            <button @click="exportLogs" class="export-btn">📥 导出</button>
-          </div>
+          <p class="subtitle">查看和管理系统操作日志</p>
         </div>
-        
+        <div class="header-actions">
+          <button @click="loadLogs" class="refresh-btn">🔄 刷新</button>
+          <button @click="exportLogs" class="export-btn">📥 导出</button>
+        </div>
+      </div>
+      
+      <div class="filter-section">
         <div class="filter-bar">
           <select v-model="filterAction" @change="loadLogs">
             <option value="">全部操作</option>
@@ -98,45 +81,45 @@
           <span>{{ pagination.page }} / {{ pagination.pages }}</span>
           <button @click="nextPage" :disabled="pagination.page >= pagination.pages">下一页</button>
         </div>
-      </main>
-    </div>
-    
-    <!-- 详情弹窗 -->
-    <el-dialog title="日志详情" :visible.sync="showDetailModal" width="600px">
-      <div v-if="selectedLog" class="log-detail">
-        <div class="detail-item">
-          <span class="label">ID:</span>
-          <span class="value">{{ selectedLog.id }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">用户:</span>
-          <span class="value">{{ selectedLog.username || '匿名' }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">操作:</span>
-          <span class="value">{{ getActionLabel(selectedLog.action) }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">IP地址:</span>
-          <span class="value">{{ selectedLog.ip_address || '未知' }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">时间:</span>
-          <span class="value">{{ selectedLog.created_at }}</span>
-        </div>
-        <div class="detail-item full">
-          <span class="label">详情:</span>
-          <pre class="details-content">{{ formatDetails(selectedLog.details) }}</pre>
-        </div>
       </div>
-    </el-dialog>
-  </div>
+      
+      <!-- 详情弹窗 -->
+      <el-dialog title="日志详情" :visible.sync="showDetailModal" width="600px">
+        <div v-if="selectedLog" class="log-detail">
+          <div class="detail-item">
+            <span class="label">ID:</span>
+            <span class="value">{{ selectedLog.id }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">用户:</span>
+            <span class="value">{{ selectedLog.username || '匿名' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">操作:</span>
+            <span class="value">{{ getActionLabel(selectedLog.action) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">IP地址:</span>
+            <span class="value">{{ selectedLog.ip_address || '未知' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">时间:</span>
+            <span class="value">{{ selectedLog.created_at }}</span>
+          </div>
+          <div class="detail-item full">
+            <span class="label">详情:</span>
+            <pre class="details-content">{{ formatDetails(selectedLog.details) }}</pre>
+          </div>
+        </div>
+      </el-dialog>
+    </div>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import Navbar from '@/components/Navbar.vue'
+import AdminLayout from '@/components/AdminLayout.vue'
 import axios from '@/api/axios'
 
 const logs = ref([])
@@ -286,72 +269,30 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.admin-page {
-  min-height: 100vh;
+.logs-page {
   background: #f5f7fa;
-}
-
-.admin-container {
-  display: flex;
-  gap: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-.sidebar {
-  width: 200px;
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-  height: fit-content;
-}
-
-.sidebar-title {
-  font-size: 18px;
-  margin: 0 0 20px 0;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #eee;
-}
-
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.nav-item {
-  padding: 10px 15px;
-  text-decoration: none;
-  color: #666;
-  border-radius: 8px;
-  transition: all 0.2s;
-}
-
-.nav-item:hover {
-  background: #f5f7fa;
-}
-
-.nav-item.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.main-content {
-  flex: 1;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 15px;
 }
 
-.page-header h1 {
+.header-title h1 {
+  margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.subtitle {
   margin: 0;
-  font-size: 24px;
+  color: #7f8c8d;
+  font-size: 14px;
 }
 
 .header-actions {
@@ -364,16 +305,29 @@ onMounted(() => {
   border: none;
   border-radius: 8px;
   cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
 }
 
 .refresh-btn {
-  background: #f5f7fa;
-  color: #666;
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.refresh-btn:hover {
+  background: #f1f5f9;
 }
 
 .export-btn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+}
+
+.export-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
 .filter-bar {

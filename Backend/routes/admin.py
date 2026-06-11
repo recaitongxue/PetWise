@@ -267,7 +267,9 @@ def get_stats():
             "total_favorites": db.execute('SELECT COUNT(*) FROM favorites').fetchone()[0],
             "total_comments": db.execute('SELECT COUNT(*) FROM comments').fetchone()[0],
             "total_chats": db.execute('SELECT COUNT(*) FROM chat_history WHERE role = ?', ('user',)).fetchone()[0],
-            "pending_feedback": db.execute('SELECT COUNT(*) FROM feedback WHERE status = ?', ('pending',)).fetchone()[0]
+            "pending_feedback": db.execute('SELECT COUNT(*) FROM feedback WHERE status = ?', ('pending',)).fetchone()[0],
+            "pending_corrections": db.execute('SELECT COUNT(*) FROM corrections WHERE status = ?', ('pending',)).fetchone()[0],
+            "active_announcements": db.execute('SELECT COUNT(*) FROM announcements WHERE is_active = ?', (1,)).fetchone()[0]
         }
 
         breed_stats = db.execute('''
@@ -919,6 +921,30 @@ def delete_rate_limit_config(config_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@admin_bp.route('/admin/rate-limits/logs', methods=['GET'])
+@admin_required
+def get_rate_limit_logs():
+    """获取用户限流记录"""
+    try:
+        db = get_db()
+        user_id = request.args.get('user_id', '')
+        endpoint = request.args.get('endpoint', '')
+        
+        query = 'SELECT * FROM rate_limits WHERE 1=1'
+        params = []
+        
+        if user_id:
+            query += ' AND user_id = ?'
+            params.append(user_id)
+        if endpoint:
+            query += ' AND endpoint LIKE ?'
+            params.append(f'%{endpoint}%')
+        
+        logs = db.execute(query, params).fetchall()
+        return jsonify({"success": True, "data": [dict(l) for l in logs]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # ==================== 敏感词管理 ====================
 
 @admin_bp.route('/admin/sensitive-words', methods=['GET'])
@@ -1113,6 +1139,34 @@ def delete_prompt_template(template_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ==================== Prompts管理 (兼容前端) ====================
+
+@admin_bp.route('/admin/prompts', methods=['GET'])
+@admin_required
+def get_prompts():
+    """获取Prompt列表（兼容前端调用）"""
+    try:
+        db = get_db()
+        prompt_type = request.args.get('prompt_type', '')
+        search = request.args.get('search', '')
+        
+        query = 'SELECT * FROM prompt_templates WHERE 1=1'
+        params = []
+        
+        if prompt_type:
+            query += ' AND prompt_type = ?'
+            params.append(prompt_type)
+        if search:
+            query += ' AND name LIKE ?'
+            params.append(f'%{search}%')
+        
+        query += ' ORDER BY prompt_type, name'
+        
+        prompts = db.execute(query, params).fetchall()
+        return jsonify({"success": True, "data": [dict(p) for p in prompts]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # ==================== 系统监控数据 ====================
 
 @admin_bp.route('/admin/monitor/realtime', methods=['GET'])
@@ -1233,188 +1287,6 @@ def delete_announcement(announcement_id):
         log_action(db, admin_id, 'admin_delete_announcement', {'announcement_id': announcement_id})
         
         return jsonify({"success": True, "message": "Announcement deleted"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# ==================== 限流配置管理 ====================
-
-@admin_bp.route('/admin/rate-limits', methods=['GET'])
-@admin_required
-def get_rate_limit_configs():
-    """获取限流配置列表"""
-    try:
-        db = get_db()
-        configs = db.execute('SELECT * FROM rate_limit_config ORDER BY endpoint').fetchall()
-        return jsonify({"success": True, "data": [dict(c) for c in configs]})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@admin_bp.route('/admin/rate-limits', methods=['POST'])
-@admin_required
-def add_rate_limit_config():
-    """添加限流配置"""
-    try:
-        admin_id = get_current_user_id()
-        data = request.get_json()
-        
-        endpoint = data.get('endpoint')
-        if not endpoint:
-            return jsonify({"error": "Endpoint is required"}), 400
-        
-        db = get_db()
-        
-        # 检查是否已存在
-        existing = db.execute('SELECT * FROM rate_limit_config WHERE endpoint = ?', (endpoint,)).fetchone()
-        if existing:
-            return jsonify({"error": "Rate limit config for this endpoint already exists"}), 400
-        
-        db.execute('''
-            INSERT INTO rate_limit_config (endpoint, daily_limit, hourly_limit, per_minute_limit, is_enabled, description)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (endpoint, data.get('daily_limit', 100), data.get('hourly_limit', 20),
-              data.get('per_minute_limit', 5), data.get('is_enabled', 1), data.get('description', '')))
-        db.commit()
-        
-        log_action(db, admin_id, 'admin_add_rate_limit', {'endpoint': endpoint})
-        
-        return jsonify({"success": True, "message": "Rate limit config added"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@admin_bp.route('/admin/rate-limits/<int:config_id>', methods=['PUT'])
-@admin_required
-def update_rate_limit_config(config_id):
-    """更新限流配置"""
-    try:
-        admin_id = get_current_user_id()
-        data = request.get_json()
-        db = get_db()
-        
-        updates = []
-        params = []
-        
-        fields = ['daily_limit', 'hourly_limit', 'per_minute_limit', 'is_enabled', 'description']
-        for field in fields:
-            if field in data:
-                updates.append(f'{field} = ?')
-                params.append(data[field])
-        
-        if updates:
-            updates.append('updated_at = CURRENT_TIMESTAMP')
-            params.append(config_id)
-            db.execute(f'UPDATE rate_limit_config SET {", ".join(updates)} WHERE id = ?', params)
-            db.commit()
-        
-        log_action(db, admin_id, 'admin_update_rate_limit', {'config_id': config_id})
-        
-        return jsonify({"success": True, "message": "Rate limit config updated"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@admin_bp.route('/admin/rate-limits/<int:config_id>', methods=['DELETE'])
-@admin_required
-def delete_rate_limit_config(config_id):
-    """删除限流配置"""
-    try:
-        admin_id = get_current_user_id()
-        db = get_db()
-        
-        db.execute('DELETE FROM rate_limit_config WHERE id = ?', (config_id,))
-        db.commit()
-        
-        log_action(db, admin_id, 'admin_delete_rate_limit', {'config_id': config_id})
-        
-        return jsonify({"success": True, "message": "Rate limit config deleted"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# ==================== 敏感词管理 ====================
-
-@admin_bp.route('/admin/sensitive-words', methods=['GET'])
-@admin_required
-def get_sensitive_words():
-    """获取敏感词列表"""
-    try:
-        db = get_db()
-        words = db.execute('SELECT * FROM sensitive_words ORDER BY category, severity, word').fetchall()
-        return jsonify({"success": True, "data": [dict(w) for w in words]})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@admin_bp.route('/admin/sensitive-words', methods=['POST'])
-@admin_required
-def add_sensitive_word():
-    """添加敏感词"""
-    try:
-        admin_id = get_current_user_id()
-        data = request.get_json()
-        
-        word = data.get('word')
-        if not word:
-            return jsonify({"error": "Word is required"}), 400
-        
-        db = get_db()
-        
-        # 检查是否已存在
-        existing = db.execute('SELECT * FROM sensitive_words WHERE word = ?', (word,)).fetchone()
-        if existing:
-            return jsonify({"error": "Sensitive word already exists"}), 400
-        
-        db.execute('''
-            INSERT INTO sensitive_words (word, category, severity, is_enabled)
-            VALUES (?, ?, ?, ?)
-        ''', (word, data.get('category', 'medical'), data.get('severity', 'medium'), data.get('is_enabled', 1)))
-        db.commit()
-        
-        log_action(db, admin_id, 'admin_add_sensitive_word', {'word': word})
-        
-        return jsonify({"success": True, "message": "Sensitive word added"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@admin_bp.route('/admin/sensitive-words/<int:word_id>', methods=['PUT'])
-@admin_required
-def update_sensitive_word(word_id):
-    """更新敏感词"""
-    try:
-        admin_id = get_current_user_id()
-        data = request.get_json()
-        db = get_db()
-        
-        updates = []
-        params = []
-        
-        fields = ['word', 'category', 'severity', 'is_enabled']
-        for field in fields:
-            if field in data:
-                updates.append(f'{field} = ?')
-                params.append(data[field])
-        
-        if updates:
-            params.append(word_id)
-            db.execute(f'UPDATE sensitive_words SET {", ".join(updates)} WHERE id = ?', params)
-            db.commit()
-        
-        log_action(db, admin_id, 'admin_update_sensitive_word', {'word_id': word_id})
-        
-        return jsonify({"success": True, "message": "Sensitive word updated"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@admin_bp.route('/admin/sensitive-words/<int:word_id>', methods=['DELETE'])
-@admin_required
-def delete_sensitive_word(word_id):
-    """删除敏感词"""
-    try:
-        admin_id = get_current_user_id()
-        db = get_db()
-        
-        db.execute('DELETE FROM sensitive_words WHERE id = ?', (word_id,))
-        db.commit()
-        
-        log_action(db, admin_id, 'admin_delete_sensitive_word', {'word_id': word_id})
-        
-        return jsonify({"success": True, "message": "Sensitive word deleted"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

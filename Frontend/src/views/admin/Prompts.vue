@@ -1,11 +1,14 @@
 <template>
-  <div class="admin-page">
-    <Navbar />
-    
-    <div class="container">
+  <AdminLayout>
+    <div class="prompts-page">
       <div class="page-header">
-        <h1 class="page-title">📝 Prompt模板管理</h1>
-        <button class="add-btn" @click="showAddModal = true">+ 添加模板</button>
+        <div class="header-title">
+          <h1>📝 Prompt模板管理</h1>
+          <p class="subtitle">管理AI对话的Prompt模板</p>
+        </div>
+        <div class="header-actions">
+          <button class="add-btn" @click="showAddModal = true">+ 添加模板</button>
+        </div>
       </div>
       
       <div class="filter-bar">
@@ -115,13 +118,13 @@
         </div>
       </div>
     </el-dialog>
-  </div>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import Navbar from '@/components/Navbar.vue'
+import AdminLayout from '@/components/AdminLayout.vue'
 import axios from '@/api/axios'
 
 const prompts = ref([])

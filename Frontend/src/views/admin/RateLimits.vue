@@ -1,11 +1,14 @@
 <template>
-  <div class="admin-page">
-    <Navbar />
-    
-    <div class="container">
+  <AdminLayout>
+    <div class="rate-limits-page">
       <div class="page-header">
-        <h1 class="page-title">⚡ 限流配置</h1>
-        <button class="add-btn" @click="showAddModal = true">+ 添加配置</button>
+        <div class="header-title">
+          <h1>⚡ 限流配置</h1>
+          <p class="subtitle">管理API接口的限流规则，保护系统稳定性</p>
+        </div>
+        <div class="header-actions">
+          <button class="add-btn" @click="showAddModal = true">+ 添加配置</button>
+        </div>
       </div>
       
       <div class="configs-list">
@@ -110,13 +113,13 @@
         <el-button type="primary" @click="submitConfig">{{ editingConfig ? '更新' : '添加' }}</el-button>
       </div>
     </el-dialog>
-  </div>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import Navbar from '@/components/Navbar.vue'
+import AdminLayout from '@/components/AdminLayout.vue'
 import axios from '@/api/axios'
 
 const configs = ref([])
@@ -244,15 +247,8 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.admin-page {
-  min-height: 100vh;
+.rate-limits-page {
   background: #f5f7fa;
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 30px 20px;
 }
 
 .page-header {

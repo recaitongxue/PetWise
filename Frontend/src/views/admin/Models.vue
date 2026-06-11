@@ -1,27 +1,12 @@
 <template>
-  <div class="admin-page">
-    <Navbar />
-    
-    <div class="admin-container">
-      <aside class="sidebar">
-        <h2 class="sidebar-title">管理后台</h2>
-        <nav class="sidebar-nav">
-          <a href="/admin" class="nav-item">📊 仪表盘</a>
-          <a href="/admin/users" class="nav-item">👥 用户管理</a>
-          <a href="/admin/models" class="nav-item active">🤖 大模型管理</a>
-          <a href="/admin/knowledge" class="nav-item">📚 知识库</a>
-          <a href="/admin/samples" class="nav-item">🔍 难样本</a>
-          <a href="/admin/stats" class="nav-item">📈 数据统计</a>
-          <a href="/admin/rate-limits" class="nav-item">⚡ 限流配置</a>
-          <a href="/admin/sensitive-words" class="nav-item">🛡️ 敏感词</a>
-          <a href="/admin/prompts" class="nav-item">💭 Prompt模板</a>
-          <a href="/admin/feedback" class="nav-item">💬 用户反馈</a>
-          <a href="/admin/announcements" class="nav-item">📢 公告管理</a>
-        </nav>
-      </aside>
-      
-      <main class="main-content">
-        <h1>🤖 大模型管理</h1>
+  <AdminLayout>
+    <div class="models-page">
+      <div class="page-header">
+        <div class="header-title">
+          <h1>🤖 大模型管理</h1>
+          <p class="subtitle">管理和配置AI大模型</p>
+        </div>
+      </div>
         
         <div class="add-section">
           <h3>添加新模型</h3>
@@ -161,15 +146,14 @@
             <el-button type="primary" @click="handleSave">保存</el-button>
           </div>
         </el-dialog>
-      </main>
     </div>
-  </div>
+  </AdminLayout>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import Navbar from '@/components/Navbar.vue'
+import AdminLayout from '@/components/AdminLayout.vue'
 import { adminAPI } from '@/api/admin'
 
 const models = ref([])
