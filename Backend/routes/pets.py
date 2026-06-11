@@ -1,8 +1,16 @@
 from flask import Blueprint, request, jsonify
+from werkzeug.utils import secure_filename
+import os
 from models.db import get_db
 from utils import log_action, login_required, get_current_user_id
 
 pets_bp = Blueprint('pets', __name__)
+
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'uploads')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @pets_bp.route('/pets', methods=['GET'])
 @login_required
@@ -10,12 +18,13 @@ def get_pets():
     try:
         user_id = get_current_user_id()
         page = int(request.args.get('page', 1))
-        per_page = int(request.args.get('per_page', 10))
+        per_page = int(request.args.get('per_page', 100))
         offset = (page - 1) * per_page
 
         db = get_db()
         pets = db.execute('''
-            SELECT id, name, breed, category, age, gender, avatar, bio, created_at, updated_at
+            SELECT id, name, breed, category, age, gender, avatar, bio, 
+                   birthday, weight, color, neutered, created_at, updated_at
             FROM pets 
             WHERE user_id = ? 
             ORDER BY created_at DESC 
@@ -42,29 +51,61 @@ def get_pets():
 def add_pet():
     try:
         user_id = get_current_user_id()
-        data = request.get_json()
-
-        name = data.get('name')
-        if not name:
-            return jsonify({"error": "Pet name is required"}), 400
+        
+        # 检查是否是文件上传
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            name = request.form.get('name')
+            if not name:
+                return jsonify({"error": "Pet name is required"}), 400
+            
+            # 处理头像上传
+            avatar_filename = None
+            if 'avatar' in request.files:
+                file = request.files['avatar']
+                if file and file.filename and allowed_file(file.filename):
+                    import uuid
+                    ext = file.filename.rsplit('.', 1)[1].lower()
+                    avatar_filename = f"{uuid.uuid4().hex[:16]}.{ext}"
+                    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                    file.save(os.path.join(UPLOAD_FOLDER, avatar_filename))
+            
+            data = {
+                'name': name,
+                'breed': request.form.get('breed'),
+                'category': request.form.get('category', 'cat'),
+                'age': request.form.get('age', type=int),
+                'gender': request.form.get('gender', 'male'),
+                'bio': request.form.get('bio'),
+                'birthday': request.form.get('birthday'),
+                'weight': request.form.get('weight', type=float),
+                'color': request.form.get('color'),
+                'neutered': str(request.form.get('neutered', 'false')).lower() in ['true', '1'],
+                'avatar': avatar_filename
+            }
+        else:
+            data = request.get_json()
+            if not data.get('name'):
+                return jsonify({"error": "Pet name is required"}), 400
 
         db = get_db()
         db.execute('''
-            INSERT INTO pets (user_id, name, breed, category, age, gender, bio)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (user_id, name, data.get('breed'), data.get('category'), 
-              data.get('age'), data.get('gender'), data.get('bio')))
+            INSERT INTO pets (user_id, name, breed, category, age, gender, bio, avatar, birthday, weight, color, neutered)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, data.get('name'), data.get('breed'), data.get('category'), 
+              data.get('age'), data.get('gender'), data.get('bio'), data.get('avatar'),
+              data.get('birthday'), data.get('weight'), data.get('color'), 
+              1 if data.get('neutered') else 0))
         db.commit()
 
         pet_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
         pet = db.execute('SELECT * FROM pets WHERE id = ?', (pet_id,)).fetchone()
 
-        log_action(db, user_id, 'add_pet', {'name': name, 'breed': data.get('breed')})
+        log_action(db, user_id, 'add_pet', {'name': data.get('name'), 'breed': data.get('breed')})
 
         return jsonify({
             "success": True,
             "message": "Pet added successfully",
-            "pet": dict(pet)
+            "data": dict(pet)
         }), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -81,7 +122,7 @@ def get_pet(pet_id):
         if not pet:
             return jsonify({"error": "Pet not found"}), 404
 
-        return jsonify({"success": True, "pet": dict(pet)})
+        return jsonify({"success": True, "data": dict(pet)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -90,34 +131,51 @@ def get_pet(pet_id):
 def update_pet(pet_id):
     try:
         user_id = get_current_user_id()
-        data = request.get_json()
         db = get_db()
 
         pet = db.execute('SELECT * FROM pets WHERE id = ? AND user_id = ?', (pet_id, user_id)).fetchone()
         if not pet:
             return jsonify({"error": "Pet not found"}), 404
 
+        # 检查是否是文件上传
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            data = {
+                'name': request.form.get('name'),
+                'breed': request.form.get('breed'),
+                'category': request.form.get('category'),
+                'age': request.form.get('age', type=int),
+                'gender': request.form.get('gender'),
+                'bio': request.form.get('bio'),
+                'birthday': request.form.get('birthday'),
+                'weight': request.form.get('weight', type=float),
+                'color': request.form.get('color'),
+                'neutered': str(request.form.get('neutered', 'false')).lower() in ['true', '1']
+            }
+            
+            # 处理头像上传
+            if 'avatar' in request.files:
+                file = request.files['avatar']
+                if file and file.filename and allowed_file(file.filename):
+                    import uuid
+                    ext = file.filename.rsplit('.', 1)[1].lower()
+                    avatar_filename = f"{uuid.uuid4().hex[:16]}.{ext}"
+                    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                    file.save(os.path.join(UPLOAD_FOLDER, avatar_filename))
+                    data['avatar'] = avatar_filename
+        else:
+            data = request.get_json()
+
         updates = []
         params = []
 
-        if 'name' in data:
-            updates.append('name = ?')
-            params.append(data['name'])
-        if 'breed' in data:
-            updates.append('breed = ?')
-            params.append(data['breed'])
-        if 'category' in data:
-            updates.append('category = ?')
-            params.append(data['category'])
-        if 'age' in data:
-            updates.append('age = ?')
-            params.append(data['age'])
-        if 'gender' in data:
-            updates.append('gender = ?')
-            params.append(data['gender'])
-        if 'bio' in data:
-            updates.append('bio = ?')
-            params.append(data['bio'])
+        for field in ['name', 'breed', 'category', 'age', 'gender', 'bio', 'avatar', 'birthday', 'weight', 'color']:
+            if field in data and data[field] is not None:
+                updates.append(f'{field} = ?')
+                params.append(data[field])
+        
+        if 'neutered' in data:
+            updates.append('neutered = ?')
+            params.append(1 if data.get('neutered') else 0)
         
         updates.append('updated_at = CURRENT_TIMESTAMP')
 

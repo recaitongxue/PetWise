@@ -78,7 +78,7 @@
     </div>
     
     <!-- 添加敏感词弹窗 -->
-    <el-dialog title="添加敏感词" :visible.sync="showAddModal" width="400px">
+    <el-dialog title="添加敏感词" v-model="showAddModal" width="400px">
       <el-form :model="form" label-width="100px">
         <el-form-item label="敏感词">
           <el-input v-model="form.word" placeholder="请输入敏感词" />

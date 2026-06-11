@@ -65,7 +65,7 @@
     </div>
     
     <!-- 添加/编辑Prompt弹窗 -->
-    <el-dialog :title="editingPrompt ? '编辑Prompt模板' : '添加Prompt模板'" :visible.sync="showAddModal" width="600px">
+    <el-dialog :title="editingPrompt ? '编辑Prompt模板' : '添加Prompt模板'" v-model="showAddModal" width="600px">
       <el-form :model="form" label-width="100px">
         <el-form-item label="名称">
           <el-input v-model="form.name" placeholder="模板名称" />
@@ -97,7 +97,7 @@
     </el-dialog>
     
     <!-- 查看Prompt详情弹窗 -->
-    <el-dialog title="Prompt详情" :visible.sync="showViewModal" width="600px">
+    <el-dialog title="Prompt详情" v-model="showViewModal" width="600px">
       <div class="prompt-detail">
         <h3>{{ viewingPrompt?.name }}</h3>
         <div class="detail-item">

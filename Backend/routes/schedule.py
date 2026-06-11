@@ -288,3 +288,26 @@ def get_upcoming_reminders():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@schedule_bp.route('/schedule/all', methods=['GET'])
+@login_required
+def get_all_reminders():
+    """获取所有宠物的提醒（用于统计概览）"""
+    try:
+        user_id = get_current_user_id()
+        db = get_db()
+
+        reminders = db.execute('''
+            SELECT sr.*, p.name as pet_name, p.avatar as pet_avatar
+            FROM schedule_reminders sr
+            JOIN pets p ON sr.pet_id = p.id
+            WHERE p.user_id = ?
+            ORDER BY sr.scheduled_date DESC
+        ''', (user_id,)).fetchall()
+
+        return jsonify({
+            "success": True,
+            "data": [dict(r) for r in reminders]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

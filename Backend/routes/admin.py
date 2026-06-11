@@ -530,6 +530,34 @@ def reply_feedback(feedback_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@admin_bp.route('/admin/breeds', methods=['GET'])
+@admin_required
+def get_breeds():
+    """获取品种信息列表（供管理员管理）"""
+    try:
+        db = get_db()
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 100))
+        offset = (page - 1) * per_page
+        
+        breeds = db.execute('''
+            SELECT * FROM breed_info 
+            ORDER BY views DESC, category, breed
+            LIMIT ? OFFSET ?
+        ''', (per_page, offset)).fetchall()
+        
+        total = db.execute('SELECT COUNT(*) FROM breed_info').fetchone()[0]
+        
+        return jsonify({
+            "success": True,
+            "data": [dict(b) for b in breeds],
+            "total": total,
+            "page": page,
+            "per_page": per_page
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @admin_bp.route('/admin/breeds/<breed>', methods=['PUT'])
 @admin_required
 def update_breed(breed):

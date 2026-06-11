@@ -174,6 +174,11 @@ const handleBatchRecognize = async () => {
     batchRecognizing.value = false
   }
 }
+
+const clearResults = () => {
+  batchResults.value = []
+  batchFiles.value = []
+}
 </script>
 
 <style scoped>

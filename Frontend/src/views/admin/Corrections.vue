@@ -75,7 +75,7 @@
     </div>
     
     <!-- 详情弹窗 -->
-    <el-dialog title="纠错详情" :visible.sync="showDetailModal" width="500px">
+    <el-dialog title="纠错详情" v-model="showDetailModal" width="500px">
       <div v-if="selectedCorrection" class="correction-detail">
         <div class="detail-item">
           <span class="label">识别ID:</span>

@@ -89,7 +89,7 @@
     </div>
     
     <!-- 添加/编辑配置弹窗 -->
-    <el-dialog :title="editingConfig ? '编辑限流配置' : '添加限流配置'" :visible.sync="showAddModal" width="500px">
+    <el-dialog :title="editingConfig ? '编辑限流配置' : '添加限流配置'" v-model="showAddModal" width="500px">
       <el-form :model="form" label-width="120px">
         <el-form-item label="接口路径">
           <el-input v-model="form.endpoint" placeholder="/api/agent/chat" />

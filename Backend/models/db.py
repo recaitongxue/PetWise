@@ -36,6 +36,10 @@ def init_db():
             gender TEXT,
             avatar TEXT,
             bio TEXT,
+            birthday DATE,
+            weight REAL,
+            color TEXT,
+            neutered INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id)
