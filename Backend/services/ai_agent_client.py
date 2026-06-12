@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional
 class AIAgentClient:
     """Client for interacting with AI Agent Service"""
     
-    def __init__(self, base_url: str = "http://localhost:8002"):
+    def __init__(self, base_url: str = "http://localhost:8000"):
         self.base_url = base_url
     
     def _request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
