@@ -5,8 +5,106 @@
       <h1 class="page-title">🐾 宠物品种识别</h1>
       
       <div class="recognize-content" :class="{ 'has-result': result }">
-        <!-- 上传区域 -->
-        <div class="upload-section">
+        <!-- 左侧面板：上传区域 + 品种详情 -->
+        <div v-if="result" class="left-panel">
+          <!-- 上传区域 -->
+          <div class="upload-section">
+            <div 
+              class="upload-area" 
+              :class="{ dragging: isDragging, hasImage: selectedFile }"
+              @dragenter.prevent="isDragging = true"
+              @dragleave.prevent="isDragging = false"
+              @dragover.prevent
+              @drop.prevent="handleDrop"
+              @click="triggerFileInput"
+            >
+              <input 
+                ref="fileInput" 
+                type="file" 
+                accept="image/*" 
+                class="file-input"
+                @change="handleFileSelect"
+              />
+              
+              <div v-if="imagePreview" class="image-preview">
+                <img :src="imagePreview" alt="预览图片" class="preview-image" />
+                <div class="preview-overlay">
+                  <span class="change-text">点击更换图片</span>
+                </div>
+              </div>
+              
+              <div v-else class="upload-hint">
+                <div class="upload-icon">📷</div>
+                <p>{{ selectedFile ? selectedFile.name : '点击或拖拽上传图片' }}</p>
+                <p class="hint">支持 JPG、PNG 格式</p>
+              </div>
+            </div>
+            
+            <div class="upload-actions">
+              <el-button 
+                type="primary" 
+                @click="handleRecognize" 
+                :loading="recognizing"
+                class="recognize-btn"
+              >
+                {{ recognizing ? '识别中...' : '开始识别' }}
+              </el-button>
+              <el-button @click="openBatchDialog">
+                📸 批量识别
+              </el-button>
+            </div>
+          </div>
+
+          <!-- 品种详情 -->
+          <div v-if="breedInfo" class="breed-info-section">
+            <h3>品种详情</h3>
+            <div class="breed-info-grid">
+              <div class="info-column">
+                <div class="info-item">
+                  <span class="label">类别</span>
+                  <span class="value">{{ breedInfo.category === 'cat' ? '🐱 猫' : '🐶 狗' }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">起源</span>
+                  <span class="value">{{ breedInfo.origin }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">性格</span>
+                  <span class="value">{{ breedInfo.personality }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">寿命</span>
+                  <span class="value">{{ breedInfo.lifespan }}</span>
+                </div>
+              </div>
+              <div class="info-column">
+                <div class="info-item">
+                  <span class="label">饲养建议</span>
+                  <span class="value">{{ breedInfo.feeding }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">护理要点</span>
+                  <span class="value">{{ breedInfo.care }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">常见问题</span>
+                  <span class="value">{{ breedInfo.common_issues }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">适合人群</span>
+                  <span class="value">{{ breedInfo.suitable_for }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="info-actions">
+              <el-button @click="addFavorite">❤️ 收藏</el-button>
+              <el-button @click="goToBreedDetail">查看详情</el-button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 没有识别结果时显示上传区域 -->
+        <div v-if="!result" class="upload-section">
           <div 
             class="upload-area" 
             :class="{ dragging: isDragging, hasImage: selectedFile }"
@@ -53,12 +151,12 @@
           </div>
         </div>
 
-        <!-- 识别结果区域在右侧 -->
+        <!-- 右侧区域：识别结果 -->
         <div v-if="result" class="result-section">
           <h3>识别结果</h3>
           
+          <!-- 识别卡片 -->
           <div class="result-card">
-            <!-- 识别信息 -->
             <div class="result-header">
               <div class="breed-icon">🐾</div>
               <div class="breed-name">{{ result.breed }}</div>
@@ -77,49 +175,6 @@
                   <span class="class-name">{{ item.class }}</span>
                   <span class="conf-value">{{ (item.confidence * 100).toFixed(2) }}%</span>
                 </div>
-              </div>
-            </div>
-
-            <div v-if="breedInfo" class="breed-info-card">
-              <h3>品种详情</h3>
-              <div class="info-grid">
-                <div class="info-item">
-                  <span class="label">类别</span>
-                  <span class="value">{{ breedInfo.category === 'cat' ? '🐱 猫' : '🐶 狗' }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">起源</span>
-                  <span class="value">{{ breedInfo.origin }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">性格</span>
-                  <span class="value">{{ breedInfo.personality }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">寿命</span>
-                  <span class="value">{{ breedInfo.lifespan }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">饲养建议</span>
-                  <span class="value">{{ breedInfo.feeding }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">护理要点</span>
-                  <span class="value">{{ breedInfo.care }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">常见问题</span>
-                  <span class="value">{{ breedInfo.common_issues }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">适合人群</span>
-                  <span class="value">{{ breedInfo.suitable_for }}</span>
-                </div>
-              </div>
-
-              <div class="info-actions">
-                <el-button @click="addFavorite">❤️ 收藏</el-button>
-                <el-button @click="goToBreedDetail">查看详情</el-button>
               </div>
             </div>
           </div>
@@ -600,13 +655,21 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 10px;
+  width: 100%;
 }
 
 .recognize-content.has-result {
   flex-direction: row;
   align-items: flex-start;
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 20px;
+}
+
+.left-panel {
+  display: flex;
+  flex-direction: column;
   gap: 15px;
+  width: 400px;
 }
 
 .upload-section {
@@ -618,20 +681,20 @@ onMounted(() => {
   transition: all 0.3s ease;
 }
 
-.recognize-content.has-result .upload-section {
-  flex-shrink: 0;
-  width: 360px;
-  max-width: 360px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+.breed-info-section {
+  background: white;
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
 }
 
 .result-section {
   flex: 1;
-  max-width: 580px;
+  min-width: 500px;
   background: white;
-  border-radius: 16px;
-  padding: 25px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
 }
 
 .upload-area {
@@ -842,41 +905,49 @@ onMounted(() => {
   font-size: 12px;
 }
 
-.breed-info-card {
+.breed-info-section {
   background: #f9fafb;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 12px;
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 15px;
 }
 
-.breed-info-card h3 {
-  margin-bottom: 10px;
-  font-size: 15px;
+.breed-info-section h3 {
+  margin-bottom: 15px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
 }
 
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  margin-bottom: 12px;
+.breed-info-grid {
+  display: flex;
+  gap: 20px;
+}
+
+.info-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .info-item {
   background: white;
-  padding: 8px;
-  border-radius: 6px;
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .info-item .label {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   color: #999;
-  margin-bottom: 3px;
+  margin-bottom: 4px;
 }
 
 .info-item .value {
   color: #333;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .info-actions {
@@ -903,10 +974,11 @@ onMounted(() => {
 
 .history-section {
   background: white;
-  border-radius: 16px;
-  padding: 25px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
   width: 100%;
+  margin-top: 15px;
 }
 
 .section-header {
