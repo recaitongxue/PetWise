@@ -7,17 +7,63 @@
         <h1 class="page-title">📅 日程提醒</h1>
         <div class="header-actions">
           <select v-model="selectedPet" class="pet-select" @change="loadReminders">
-            <option value="">选择宠物</option>
+            <option value="">全部宠物</option>
             <option v-for="pet in pets" :key="pet.id" :value="pet.id">
               {{ pet.name }} ({{ pet.breed }})
             </option>
           </select>
-          <button class="add-btn" @click="showAddModal = true" :disabled="!selectedPet">
+          <button class="add-btn" @click="showAddModal = true">
             + 添加提醒
           </button>
           <button class="generate-btn" @click="generateSchedule" :disabled="!selectedPet">
             🤖 生成智能日程
           </button>
+        </div>
+      </div>
+
+      <!-- 全部宠物统计概览 - 仅在选择全部宠物时显示 -->
+      <div v-if="!selectedPet" class="all-pets-stats">
+        <div class="stat-card total">
+          <div class="stat-icon">🐾</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ pets.length }}</div>
+            <div class="stat-label">宠物总数</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ totalReminders }}</div>
+            <div class="stat-label">总提醒数</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⏳</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ pendingReminders }}</div>
+            <div class="stat-label">待处理</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ completedReminders }}</div>
+            <div class="stat-label">已完成</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⏰</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ upcomingReminders.length }}</div>
+            <div class="stat-label">本周待办</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">💉</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ vaccinationCount }}</div>
+            <div class="stat-label">疫苗提醒</div>
+          </div>
         </div>
       </div>
       
@@ -42,10 +88,11 @@
         </div>
       </div>
       
-      <div v-if="selectedPet" class="schedule-content">
+      <!-- 日程列表 - 全部宠物或单个宠物 -->
+      <div class="schedule-content">
         <!-- 日程列表 -->
         <div class="reminders-section">
-          <h3>📋 全部日程</h3>
+          <h3>📋 {{ selectedPet ? getPetName(selectedPet) + '的日程' : '全部宠物日程' }}</h3>
           <div class="filter-bar">
             <select v-model="reminderType" @change="loadReminders">
               <option value="">全部类型</option>
@@ -63,8 +110,8 @@
             </select>
           </div>
           
-          <div v-if="reminders.length" class="reminders-list">
-            <div v-for="reminder in reminders" :key="reminder.id" 
+          <div v-if="displayReminders.length" class="reminders-list">
+            <div v-for="reminder in displayReminders" :key="reminder.id" 
                  class="reminder-card"
                  :class="{ completed: reminder.is_completed }">
               <div class="reminder-header">
@@ -75,6 +122,10 @@
                 </span>
               </div>
               <div class="reminder-body">
+                <div class="reminder-detail">
+                  <span class="label">宠物:</span>
+                  <span class="value">{{ reminder.pet_name }}</span>
+                </div>
                 <div class="reminder-detail">
                   <span class="label">类型:</span>
                   <span class="value">{{ getReminderTypeLabel(reminder.reminder_type) }}</span>
@@ -115,15 +166,10 @@
           </div>
         </div>
       </div>
-      
-      <div v-else class="empty-state">
-        <div class="empty-icon">📅</div>
-        <p>请先选择一只宠物查看日程提醒</p>
-      </div>
     </div>
     
     <!-- 添加提醒弹窗 -->
-    <el-dialog title="添加日程提醒" :visible.sync="showAddModal" width="500px">
+    <el-dialog title="添加日程提醒" v-model="showAddModal" width="500px">
       <el-form :model="form" label-width="100px">
         <el-form-item label="提醒类型">
           <el-select v-model="form.reminder_type">
@@ -158,7 +204,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import Navbar from '@/components/Navbar.vue'
 import { petsAPI } from '@/api/pets'
@@ -166,6 +212,7 @@ import { petsAPI } from '@/api/pets'
 const pets = ref([])
 const selectedPet = ref('')
 const reminders = ref([])
+const allReminders = ref([])
 const upcomingReminders = ref([])
 const reminderType = ref('')
 const reminderStatus = ref('all')
@@ -184,6 +231,34 @@ const form = reactive({
   scheduled_date: '',
   description: ''
 })
+
+// 全部宠物统计计算
+const totalReminders = computed(() => allReminders.value.length)
+
+const pendingReminders = computed(() => 
+  allReminders.value.filter(r => !r.is_completed).length
+)
+
+const completedReminders = computed(() => 
+  allReminders.value.filter(r => r.is_completed).length
+)
+
+const vaccinationCount = computed(() => 
+  allReminders.value.filter(r => r.reminder_type === 'vaccination').length
+)
+
+// 根据选择显示对应的提醒列表
+const displayReminders = computed(() => {
+  if (selectedPet.value) {
+    return reminders.value
+  }
+  return allReminders.value
+})
+
+const getPetName = (petId) => {
+  const pet = pets.value.find(p => p.id === petId)
+  return pet ? pet.name : ''
+}
 
 const reminderTypeLabels = {
   vaccination: '疫苗接种',
@@ -218,7 +293,18 @@ const loadPets = async () => {
 }
 
 const loadReminders = async () => {
-  if (!selectedPet.value) return
+  if (!selectedPet.value) {
+    // 加载所有宠物的提醒用于统计
+    try {
+      const response = await petsAPI.getAllReminders()
+      if (response.success) {
+        allReminders.value = response.data || []
+      }
+    } catch (error) {
+      console.error('Failed to load all reminders:', error)
+    }
+    return
+  }
   
   try {
     const response = await petsAPI.getReminders(selectedPet.value, {
@@ -235,6 +321,17 @@ const loadReminders = async () => {
     }
   } catch (error) {
     console.error('Failed to load reminders:', error)
+  }
+}
+
+const loadAllReminders = async () => {
+  try {
+    const response = await petsAPI.getAllReminders()
+    if (response.success) {
+      allReminders.value = response.data || []
+    }
+  } catch (error) {
+    console.error('Failed to load all reminders:', error)
   }
 }
 
@@ -345,6 +442,7 @@ const nextPage = () => {
 
 onMounted(() => {
   loadPets()
+  loadAllReminders()
   loadUpcomingReminders()
 })
 </script>
@@ -406,6 +504,62 @@ onMounted(() => {
 .add-btn:disabled, .generate-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* 全部宠物统计概览 */
+.all-pets-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+}
+
+.stat-card.total {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.stat-card.total .stat-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.stat-icon {
+  font-size: 28px;
+}
+
+.stat-info {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.stat-value .unit {
+  font-size: 14px;
+  font-weight: normal;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #666;
 }
 
 .upcoming-section {

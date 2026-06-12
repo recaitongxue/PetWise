@@ -4,10 +4,10 @@
     
     <div class="container">
       <div class="page-header">
-        <h1 class="page-title">📊 健康记录</h1>
+        <h1 class="page-title">🏥 健康记录</h1>
         <div class="header-actions">
-          <select v-model="selectedPet" class="pet-select" @change="loadHealthRecords">
-            <option value="">选择宠物</option>
+          <select v-model="selectedPet" class="pet-select" @change="loadAllData">
+            <option value="">全部宠物</option>
             <option v-for="pet in pets" :key="pet.id" :value="pet.id">
               {{ pet.name }} ({{ pet.breed }})
             </option>
@@ -17,18 +17,135 @@
           </button>
         </div>
       </div>
+
+      <!-- 全部宠物统计概览 - 仅在选择全部宠物时显示 -->
+      <div v-if="!selectedPet" class="all-pets-stats">
+        <div class="stat-card total">
+          <div class="stat-icon">🐾</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ pets.length }}</div>
+            <div class="stat-label">宠物总数</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ totalRecords }}</div>
+            <div class="stat-label">总记录数</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⚖️</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ overallLatestWeight || '--' }} <span class="unit">kg</span></div>
+            <div class="stat-label">最新体重</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🍖</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ totalFoodRecords }}</div>
+            <div class="stat-label">饮食记录</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">😊</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ totalHappyDays }}</div>
+            <div class="stat-label">开心天数</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🏃</div>
+          <div class="stat-info">
+            <div class="stat-value">{{ totalActiveDays }}</div>
+            <div class="stat-label">活跃天数</div>
+          </div>
+        </div>
+      </div>
       
       <div v-if="selectedPet" class="health-content">
+        <!-- 健康统计概览 -->
+        <div class="stats-overview">
+          <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-info">
+              <div class="stat-value">{{ stats.totalRecords }}</div>
+              <div class="stat-label">总记录数</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">⚖️</div>
+            <div class="stat-info">
+              <div class="stat-value">{{ stats.latestWeight || '--' }} <span class="unit">kg</span></div>
+              <div class="stat-label">最新体重</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📉</div>
+            <div class="stat-info">
+              <div class="stat-value">{{ stats.avgWeight || '--' }} <span class="unit">kg</span></div>
+              <div class="stat-label">平均体重</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🍖</div>
+            <div class="stat-info">
+              <div class="stat-value">{{ stats.totalFoodRecords }}</div>
+              <div class="stat-label">饮食记录</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">😊</div>
+            <div class="stat-info">
+              <div class="stat-value">{{ stats.happyDays || 0 }}</div>
+              <div class="stat-label">开心天数</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🏃</div>
+            <div class="stat-info">
+              <div class="stat-value">{{ stats.activeDays || 0 }}</div>
+              <div class="stat-label">活跃天数</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 记录类型分布 -->
+        <div class="type-distribution">
+          <h3>📈 记录类型分布</h3>
+          <div class="distribution-bars">
+            <div class="dist-item" v-for="(count, type) in stats.typeDistribution" :key="type">
+              <div class="dist-label">
+                <span>{{ getRecordTypeLabel(type) }}</span>
+                <span class="dist-count">{{ count }}条</span>
+              </div>
+              <div class="dist-bar-container">
+                <div 
+                  class="dist-bar" 
+                  :class="type"
+                  :style="{ width: (count / stats.maxTypeCount * 100) + '%' }"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <!-- 趋势图表 -->
         <div class="trends-section">
-          <h3>📈 健康趋势</h3>
+          <h3>📉 健康趋势</h3>
           <div class="trend-charts">
             <div class="chart-card">
-              <h4>体重变化</h4>
+              <div class="chart-header">
+                <h4>⚖️ 体重变化</h4>
+                <span v-if="weightTrends.length" class="trend-summary">
+                  {{ weightTrends.length > 1 ? `变化: ${calculateWeightChange()}` : '数据不足' }}
+                </span>
+              </div>
               <div class="chart-placeholder">
                 <div v-if="weightTrends.length" class="trend-data">
-                  <div v-for="(item, idx) in weightTrends" :key="idx" class="trend-item">
-                    <span class="date">{{ item.record_date }}</span>
+                  <div v-for="(item, idx) in weightTrends.slice(-7)" :key="idx" class="trend-item">
+                    <span class="date">{{ formatDate(item.record_date) }}</span>
                     <span class="value">{{ item.weight }} kg</span>
                   </div>
                 </div>
@@ -36,15 +153,40 @@
               </div>
             </div>
             <div class="chart-card">
-              <h4>饮食记录</h4>
+              <div class="chart-header">
+                <h4>🍖 饮食记录</h4>
+                <span v-if="foodTrends.length" class="trend-summary">
+                  平均: {{ calculateAvgFood() }}g/天
+                </span>
+              </div>
               <div class="chart-placeholder">
                 <div v-if="foodTrends.length" class="trend-data">
-                  <div v-for="(item, idx) in foodTrends" :key="idx" class="trend-item">
-                    <span class="date">{{ item.record_date }}</span>
-                    <span class="value">{{ item.food_amount }}g {{ item.food_type }}</span>
+                  <div v-for="(item, idx) in foodTrends.slice(-7)" :key="idx" class="trend-item">
+                    <span class="date">{{ formatDate(item.record_date) }}</span>
+                    <span class="value">{{ item.food_amount || '--' }}g</span>
                   </div>
                 </div>
                 <p v-else class="no-data">暂无饮食记录</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 最近健康状态 -->
+        <div class="latest-status" v-if="latestRecords.length">
+          <h3>🩺 最近健康状态</h3>
+          <div class="status-cards">
+            <div 
+              v-for="record in latestRecords" 
+              :key="record.id" 
+              class="status-card"
+              :class="record.record_type"
+            >
+              <div class="status-icon">{{ getRecordIcon(record) }}</div>
+              <div class="status-content">
+                <div class="status-type">{{ getRecordTypeLabel(record.record_type) }}</div>
+                <div class="status-value">{{ getRecordValue(record) }}</div>
+                <div class="status-date">{{ formatDate(record.record_date) }}</div>
               </div>
             </div>
           </div>
@@ -68,7 +210,9 @@
           <div v-if="records.length" class="records-list">
             <div v-for="record in records" :key="record.id" class="record-card">
               <div class="record-header">
-                <span class="record-type">{{ getRecordTypeLabel(record.record_type) }}</span>
+                <span class="record-type-badge" :class="record.record_type">
+                  {{ getRecordIcon(record) }} {{ getRecordTypeLabel(record.record_type) }}
+                </span>
                 <span class="record-date">{{ record.record_date }}</span>
               </div>
               <div class="record-body">
@@ -86,15 +230,15 @@
                 </div>
                 <div v-if="record.stool_status" class="record-item">
                   <span class="label">排便状态:</span>
-                  <span class="value">{{ record.stool_status }}</span>
+                  <span class="value status-badge" :class="record.stool_status">{{ getStoolStatus(record.stool_status) }}</span>
                 </div>
                 <div v-if="record.activity_level" class="record-item">
                   <span class="label">活动量:</span>
-                  <span class="value">{{ record.activity_level }}</span>
+                  <span class="value">{{ getActivityLevel(record.activity_level) }}</span>
                 </div>
                 <div v-if="record.mood" class="record-item">
                   <span class="label">心情:</span>
-                  <span class="value">{{ record.mood }}</span>
+                  <span class="value">{{ getMood(record.mood) }}</span>
                 </div>
                 <div v-if="record.notes" class="record-item notes">
                   <span class="label">备注:</span>
@@ -106,7 +250,7 @@
               </div>
             </div>
           </div>
-          <div v-else class="empty-state">
+          <div v-else class="empty-state-small">
             <p>暂无健康记录</p>
           </div>
           
@@ -119,13 +263,13 @@
       </div>
       
       <div v-else class="empty-state">
-        <div class="empty-icon">📊</div>
+        <div class="empty-icon">🏥</div>
         <p>请先选择一只宠物查看健康记录</p>
       </div>
     </div>
     
     <!-- 添加记录弹窗 -->
-    <el-dialog title="添加健康记录" :visible.sync="showAddModal" width="500px">
+    <el-dialog title="添加健康记录" v-model="showAddModal" width="500px">
       <el-form :model="form" label-width="100px">
         <el-form-item label="记录类型">
           <el-select v-model="form.record_type">
@@ -191,7 +335,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import Navbar from '@/components/Navbar.vue'
 import { petsAPI } from '@/api/pets'
@@ -201,6 +345,8 @@ const selectedPet = ref('')
 const records = ref([])
 const weightTrends = ref([])
 const foodTrends = ref([])
+const allRecords = ref([])
+const allPetsAllRecords = ref([])
 const recordType = ref('')
 const showAddModal = ref(false)
 
@@ -231,7 +377,133 @@ const recordTypeLabels = {
   checkup: '体检'
 }
 
+const recordTypeIcons = {
+  weight: '⚖️',
+  food: '🍖',
+  stool: '💩',
+  activity: '🏃',
+  mood: '😊',
+  checkup: '🩺'
+}
+
+// 总体统计 - 所有宠物
+const totalRecords = computed(() => allPetsAllRecords.value.length)
+
+const totalFoodRecords = computed(() => 
+  allPetsAllRecords.value.filter(r => r.record_type === 'food').length
+)
+
+const totalHappyDays = computed(() => 
+  allPetsAllRecords.value.filter(r => r.record_type === 'mood' && r.mood === 'happy').length
+)
+
+const totalActiveDays = computed(() => 
+  allPetsAllRecords.value.filter(r => r.record_type === 'activity' && r.activity_level === 'active').length
+)
+
+const overallLatestWeight = computed(() => {
+  const weightRecords = allPetsAllRecords.value.filter(r => r.weight)
+  if (weightRecords.length === 0) return null
+  return weightRecords[0].weight
+})
+
+// 计算统计
+const stats = computed(() => {
+  const typeDistribution = {}
+  let totalFoodRecords = 0
+  let happyDays = 0
+  let activeDays = 0
+  let maxTypeCount = 0
+
+  allRecords.value.forEach(record => {
+    const type = record.record_type
+    typeDistribution[type] = (typeDistribution[type] || 0) + 1
+    
+    if (type === 'food') totalFoodRecords++
+    if (type === 'mood' && record.mood === 'happy') happyDays++
+    if (type === 'activity' && record.activity_level === 'active') activeDays++
+  })
+
+  maxTypeCount = Math.max(...Object.values(typeDistribution), 1)
+
+  // 计算体重
+  const weightRecords = allRecords.value.filter(r => r.weight)
+  const latestWeight = weightRecords.length > 0 ? weightRecords[0].weight : null
+  const avgWeight = weightRecords.length > 0 
+    ? (weightRecords.reduce((sum, r) => sum + r.weight, 0) / weightRecords.length).toFixed(1)
+    : null
+
+  return {
+    totalRecords: allRecords.value.length,
+    latestWeight,
+    avgWeight,
+    totalFoodRecords,
+    happyDays,
+    activeDays,
+    typeDistribution,
+    maxTypeCount
+  }
+})
+
+// 最新记录
+const latestRecords = computed(() => {
+  const latest = {}
+  allRecords.value.forEach(record => {
+    if (!latest[record.record_type]) {
+      latest[record.record_type] = record
+    }
+  })
+  return Object.values(latest).slice(0, 6)
+})
+
 const getRecordTypeLabel = (type) => recordTypeLabels[type] || type
+const getRecordIcon = (record) => recordTypeIcons[record.record_type] || '📝'
+
+const getRecordValue = (record) => {
+  switch (record.record_type) {
+    case 'weight': return `${record.weight} kg`
+    case 'food': return `${record.food_amount || '--'}g`
+    case 'stool': return getStoolStatus(record.stool_status)
+    case 'activity': return getActivityLevel(record.activity_level)
+    case 'mood': return getMood(record.mood)
+    case 'checkup': return record.notes || '已完成'
+    default: return '--'
+  }
+}
+
+const getStoolStatus = (status) => {
+  const map = { normal: '正常', soft: '偏软', hard: '偏硬', abnormal: '异常' }
+  return map[status] || status
+}
+
+const getActivityLevel = (level) => {
+  const map = { active: '活跃', normal: '正常', low: '较少', very_low: '很少' }
+  return map[level] || level
+}
+
+const getMood = (mood) => {
+  const map = { happy: '开心', normal: '正常', sad: '低落', anxious: '焦虑' }
+  return map[mood] || mood
+}
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return '--'
+  return dateStr.split(' ')[0]
+}
+
+const calculateWeightChange = () => {
+  if (weightTrends.value.length < 2) return '数据不足'
+  const latest = weightTrends.value[0].weight
+  const oldest = weightTrends.value[weightTrends.value.length - 1].weight
+  const change = (latest - oldest).toFixed(1)
+  return change > 0 ? `+${change}kg` : `${change}kg`
+}
+
+const calculateAvgFood = () => {
+  if (foodTrends.value.length === 0) return '--'
+  const total = foodTrends.value.reduce((sum, r) => sum + (r.food_amount || 0), 0)
+  return Math.round(total / foodTrends.value.length)
+}
 
 const loadPets = async () => {
   try {
@@ -242,6 +514,26 @@ const loadPets = async () => {
   } catch (error) {
     console.error('Failed to load pets:', error)
   }
+}
+
+const loadAllData = async () => {
+  if (!selectedPet.value) return
+  
+  // 加载所有记录用于统计
+  try {
+    const response = await petsAPI.getHealthRecords(selectedPet.value, {
+      page: 1,
+      per_page: 1000
+    })
+    if (response.success) {
+      allRecords.value = response.data || []
+    }
+  } catch (error) {
+    console.error('Failed to load all records:', error)
+  }
+  
+  loadHealthRecords()
+  loadHealthTrends()
 }
 
 const loadHealthRecords = async () => {
@@ -295,8 +587,7 @@ const submitRecord = async () => {
       ElMessage.success('记录添加成功')
       showAddModal.value = false
       resetForm()
-      loadHealthRecords()
-      loadHealthTrends()
+      loadAllData()
     }
   } catch (error) {
     ElMessage.error('添加失败')
@@ -310,8 +601,7 @@ const deleteRecord = async (recordId) => {
     const response = await petsAPI.deleteHealthRecord(selectedPet.value, recordId)
     if (response.success) {
       ElMessage.success('删除成功')
-      loadHealthRecords()
-      loadHealthTrends()
+      loadAllData()
     }
   } catch (error) {
     ElMessage.error('删除失败')
@@ -355,7 +645,7 @@ onMounted(() => {
 }
 
 .container {
-  max-width: 1000px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 30px 20px;
 }
@@ -364,11 +654,12 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: 25px;
 }
 
 .page-title {
   font-size: 28px;
+  margin: 0;
 }
 
 .header-actions {
@@ -402,21 +693,118 @@ onMounted(() => {
 .health-content {
   background: white;
   border-radius: 16px;
-  padding: 20px;
+  padding: 25px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 
+/* 统计概览 */
+.stats-overview {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #f5f7fa 0%, #fff 100%);
+  border-radius: 12px;
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #eee;
+}
+
+.stat-icon {
+  font-size: 28px;
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 600;
+  color: #333;
+}
+
+.stat-value .unit {
+  font-size: 12px;
+  color: #999;
+  font-weight: normal;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #999;
+}
+
+/* 记录类型分布 */
+.type-distribution {
+  margin-bottom: 25px;
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 12px;
+}
+
+.type-distribution h3 {
+  margin: 0 0 15px 0;
+  font-size: 16px;
+}
+
+.distribution-bars {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.dist-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.dist-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #666;
+}
+
+.dist-count {
+  color: #999;
+}
+
+.dist-bar-container {
+  height: 8px;
+  background: #eee;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.dist-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.dist-bar.weight { background: linear-gradient(90deg, #667eea, #764ba2); }
+.dist-bar.food { background: linear-gradient(90deg, #f093fb, #f5576c); }
+.dist-bar.stool { background: linear-gradient(90deg, #4facfe, #00f2fe); }
+.dist-bar.activity { background: linear-gradient(90deg, #43e97b, #38f9d7); }
+.dist-bar.mood { background: linear-gradient(90deg, #fa709a, #fee140); }
+.dist-bar.checkup { background: linear-gradient(90deg, #a8edea, #fed6e3); }
+
+/* 趋势图表 */
 .trends-section {
-  margin-bottom: 30px;
+  margin-bottom: 25px;
 }
 
 .trends-section h3 {
   margin-bottom: 15px;
+  font-size: 16px;
 }
 
 .trend-charts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
 }
 
@@ -426,16 +814,27 @@ onMounted(() => {
   padding: 15px;
 }
 
-.chart-card h4 {
-  margin: 0 0 10px 0;
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.chart-header h4 {
+  margin: 0;
   font-size: 14px;
-  color: #666;
+}
+
+.trend-summary {
+  font-size: 12px;
+  color: #667eea;
 }
 
 .trend-data {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .trend-item {
@@ -460,8 +859,63 @@ onMounted(() => {
   padding: 20px;
 }
 
+/* 最新状态 */
+.latest-status {
+  margin-bottom: 25px;
+}
+
+.latest-status h3 {
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
+.status-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.status-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  background: #f9fafb;
+  border-radius: 12px;
+  border-left: 4px solid #667eea;
+}
+
+.status-card.weight { border-left-color: #667eea; }
+.status-card.food { border-left-color: #f5576c; }
+.status-card.stool { border-left-color: #4facfe; }
+.status-card.activity { border-left-color: #43e97b; }
+.status-card.mood { border-left-color: #fa709a; }
+.status-card.checkup { border-left-color: #a8edea; }
+
+.status-icon {
+  font-size: 24px;
+}
+
+.status-type {
+  font-size: 12px;
+  color: #999;
+}
+
+.status-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.status-date {
+  font-size: 11px;
+  color: #999;
+}
+
+/* 记录列表 */
 .records-section h3 {
   margin-bottom: 15px;
+  font-size: 16px;
 }
 
 .filter-bar {
@@ -477,7 +931,7 @@ onMounted(() => {
 .records-list {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 12px;
 }
 
 .record-card {
@@ -489,13 +943,23 @@ onMounted(() => {
 .record-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 10px;
 }
 
-.record-type {
+.record-type-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
   font-weight: 500;
-  color: #667eea;
 }
+
+.record-type-badge.weight { background: #e6e9ff; color: #667eea; }
+.record-type-badge.food { background: #ffe6e9; color: #f5576c; }
+.record-type-badge.stool { background: #e0f7ff; color: #00c4cc; }
+.record-type-badge.activity { background: #e0ffe9; color: #36b37e; }
+.record-type-badge.mood { background: #fff0f3; color: #e44d8a; }
+.record-type-badge.checkup { background: #f0f7ff; color: #5a7dff; }
 
 .record-date {
   color: #999;
@@ -521,9 +985,20 @@ onMounted(() => {
   color: #333;
 }
 
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.status-badge.normal { background: #e6f7ed; color: #52c41a; }
+.status-badge.soft { background: #fff7e6; color: #faad14; }
+.status-badge.hard { background: #fff1f0; color: #ff4d4f; }
+.status-badge.abnormal { background: #fff1f0; color: #f5222d; }
+
 .record-item.notes {
   width: 100%;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .record-actions {
@@ -562,12 +1037,15 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-.empty-state {
+.empty-state, .empty-state-small {
   text-align: center;
-  padding: 60px;
+  padding: 40px;
   background: white;
   border-radius: 16px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.empty-state-small {
+  padding: 30px;
 }
 
 .empty-icon {
@@ -577,5 +1055,25 @@ onMounted(() => {
 
 .empty-state p {
   color: #666;
+  margin: 0;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stats-overview {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .distribution-bars {
+    grid-template-columns: 1fr;
+  }
+  
+  .trend-charts {
+    grid-template-columns: 1fr;
+  }
+  
+  .status-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 </style>

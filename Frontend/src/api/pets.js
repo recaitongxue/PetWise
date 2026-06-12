@@ -10,6 +10,14 @@ export const petsAPI = {
 
   // 添加宠物
   addPet(data) {
+    // 如果是 FormData，设置正确的 Content-Type
+    if (data instanceof FormData) {
+      return axios.post(`${PET_BASE}`, data, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+    }
     return axios.post(`${PET_BASE}`, data)
   },
 
@@ -20,6 +28,14 @@ export const petsAPI = {
 
   // 更新宠物
   updatePet(id, data) {
+    // 如果是 FormData，设置正确的 Content-Type
+    if (data instanceof FormData) {
+      return axios.put(`${PET_BASE}/${id}`, data, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+    }
     return axios.put(`${PET_BASE}/${id}`, data)
   },
 
@@ -80,6 +96,11 @@ export const petsAPI = {
   // 获取即将到来的提醒
   getUpcomingReminders(days = 7) {
     return axios.get('/schedule/upcoming', { params: { days } })
+  },
+
+  // 获取所有宠物的提醒（用于统计）
+  getAllReminders() {
+    return axios.get('/schedule/all')
   }
 }
 

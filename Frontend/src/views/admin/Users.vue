@@ -155,7 +155,7 @@
       </div>
       
       <!-- 添加用户弹窗 -->
-      <el-dialog title="新增用户" :visible.sync="showAddModal" width="450px">
+      <el-dialog title="新增用户" v-model="showAddModal" width="450px">
         <el-form :model="addForm" label-width="80px" class="form-container">
           <el-form-item label="用户名" prop="username">
             <el-input v-model="addForm.username" placeholder="请输入用户名" />
@@ -181,7 +181,7 @@
       </el-dialog>
       
       <!-- 编辑用户弹窗 -->
-      <el-dialog title="编辑用户" :visible.sync="showEditModal" width="450px">
+      <el-dialog title="编辑用户" v-model="showEditModal" width="450px">
         <el-form :model="editForm" label-width="80px" class="form-container">
           <el-form-item label="用户名">
             <el-input v-model="editForm.username" disabled />
@@ -210,7 +210,7 @@
       </el-dialog>
       
       <!-- 查看用户详情弹窗 -->
-      <el-dialog title="用户详情" :visible.sync="showViewModal" width="500px">
+      <el-dialog title="用户详情" v-model="showViewModal" width="500px">
         <div class="user-detail-card" v-if="viewUserInfo">
           <div class="detail-header">
             <div class="detail-avatar">
@@ -256,7 +256,7 @@
       </el-dialog>
       
       <!-- 导入用户弹窗 -->
-      <el-dialog title="导入用户" :visible.sync="showImportModal" width="450px">
+      <el-dialog title="导入用户" v-model="showImportModal" width="450px">
         <el-form :model="importForm" label-width="80px" class="form-container">
           <el-form-item label="导入文件">
             <el-upload

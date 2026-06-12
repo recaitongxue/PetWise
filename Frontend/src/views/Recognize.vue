@@ -46,7 +46,7 @@
             >
               {{ recognizing ? '识别中...' : '开始识别' }}
             </el-button>
-            <el-button @click="handleBatchRecognize">
+            <el-button @click="openBatchDialog">
               📸 批量识别
             </el-button>
           </div>
@@ -176,6 +176,7 @@
                   <img :src="getImageUrl(item.image_path)" alt="识别图片" class="history-image" />
                   <div class="history-detail">
                     <span class="history-breed">{{ item.breed }}</span>
+                    <span v-if="isBatchRecord(item.image_path)" class="batch-badge">📸 批量</span>
                     <span class="history-time">{{ item.created_at }}</span>
                   </div>
                 </div>
@@ -191,6 +192,71 @@
         </div>
       </div>
     </div>
+    
+    <!-- 批量识别对话框 -->
+    <el-dialog title="📸 批量宠物识别" v-model="showBatchDialog" width="800px">
+      <div class="batch-upload-section">
+        <div 
+          class="batch-upload-area" 
+          :class="{ dragging: batchIsDragging, hasImages: batchFilesList.length > 0 }"
+          @dragenter.prevent="batchIsDragging = true"
+          @dragleave.prevent="batchIsDragging = false"
+          @dragover.prevent
+          @drop.prevent="handleBatchDrop"
+          @click="triggerBatchFileInput"
+        >
+          <input 
+            ref="batchFileInput" 
+            type="file" 
+            accept="image/*" 
+            multiple
+            class="batch-file-input"
+            @change="handleBatchFileSelect"
+          />
+          
+          <div v-if="batchFilesList.length > 0" class="batch-files-preview">
+            <div v-for="(file, index) in batchFilesList" :key="index" class="batch-file-item">
+              <img :src="file.preview" :alt="file.name" class="batch-file-thumbnail" />
+              <span class="batch-file-name">{{ file.name }}</span>
+              <button @click.stop="removeBatchFile(index)" class="batch-remove-file">×</button>
+            </div>
+          </div>
+          
+          <div v-else class="batch-upload-hint">
+            <div class="batch-upload-icon">📷</div>
+            <p>点击或拖拽上传多张图片</p>
+            <p class="batch-hint">支持 JPG、PNG 格式，最多10张</p>
+          </div>
+        </div>
+        
+        <div class="batch-upload-actions">
+          <el-button 
+            type="primary" 
+            @click="handleBatchRecognize" 
+            :loading="batchRecognizing"
+            :disabled="batchFilesList.length === 0"
+          >
+            {{ batchRecognizing ? '识别中...' : '开始批量识别' }}
+          </el-button>
+          <el-button @click="clearBatchResults" :disabled="batchFilesList.length === 0">
+            清空
+          </el-button>
+        </div>
+      </div>
+      
+      <div v-if="batchResultsList.length > 0" class="batch-results-section">
+        <h3>识别结果</h3>
+        <div class="batch-results-grid">
+          <div v-for="(result, index) in batchResultsList" :key="index" class="batch-result-card">
+            <img :src="result.image_url" :alt="result.breed" class="batch-result-image" />
+            <div class="batch-result-info">
+              <div class="batch-breed-name">{{ result.breed }}</div>
+              <div class="batch-confidence">置信度: {{ (result.confidence * 100).toFixed(2) }}%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -235,11 +301,10 @@ const getImageUrl = (path) => {
   return `/uploads/${path}`
 }
 
-// 批量识别相关
-const batchMode = ref(false)
-const batchFiles = ref([])
-const batchResults = ref([])
-const batchRecognizing = ref(false)
+// 判断是否为批量识别记录
+const isBatchRecord = (imagePath) => {
+  return imagePath && imagePath.startsWith('batch_')
+}
 
 // 加载所有品种列表
 const loadAllBreeds = async () => {
@@ -314,10 +379,106 @@ const handleRecognize = async () => {
     }
   }
 
-const handleBatchRecognize = () => {
-  // 跳转到批量识别页面，或者打开批量识别对话框
-  ElMessage.info('批量识别功能即将上线')
-  // router.push('/batch-recognize') // 将来可以添加路由
+// 批量识别相关状态
+const showBatchDialog = ref(false)
+const batchFileInput = ref(null)
+const batchIsDragging = ref(false)
+const batchFilesList = ref([])
+const batchResultsList = ref([])
+const batchRecognizing = ref(false)
+
+const openBatchDialog = () => {
+  showBatchDialog.value = true
+}
+
+const closeBatchDialog = () => {
+  showBatchDialog.value = false
+  batchFilesList.value = []
+  batchResultsList.value = []
+}
+
+const triggerBatchFileInput = () => {
+  batchFileInput.value?.click()
+}
+
+const handleBatchFileSelect = (event) => {
+  const files = Array.from(event.target.files)
+  addBatchFiles(files)
+}
+
+const handleBatchDrop = (event) => {
+  batchIsDragging.value = false
+  const files = Array.from(event.dataTransfer.files)
+  addBatchFiles(files)
+}
+
+const addBatchFiles = (files) => {
+  const validFiles = files.filter(file => file.type.startsWith('image/'))
+  
+  if (validFiles.length !== files.length) {
+    ElMessage.warning('只支持图片文件')
+  }
+  
+  validFiles.forEach(file => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      batchFilesList.value.push({
+        file,
+        preview: e.target.result,
+        name: file.name
+      })
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+const removeBatchFile = (index) => {
+  batchFilesList.value.splice(index, 1)
+}
+
+const handleBatchRecognize = async () => {
+  if (batchFilesList.value.length === 0) {
+    ElMessage.error('请先上传图片')
+    return
+  }
+  
+  if (batchFilesList.value.length > 10) {
+    ElMessage.error('每次最多上传10张图片')
+    return
+  }
+  
+  batchRecognizing.value = true
+  batchResultsList.value = []
+  
+  try {
+    const files = batchFilesList.value.map(item => item.file)
+    const response = await recognizeAPI.recognizeBatch(files)
+    
+    if (response.success) {
+      const results = response.results.map((result, index) => ({
+        image_url: batchFilesList.value[index].preview,
+        breed: result.success ? result.result.breed : '识别失败',
+        confidence: result.success ? result.result.confidence : 0,
+        filename: result.filename
+      }))
+      
+      batchResultsList.value = results
+      ElMessage.success(`批量识别完成，成功 ${response.success_count}/${response.total}`)
+      loadHistory() // 刷新历史记录
+    } else {
+      ElMessage.error(response.message || '批量识别失败')
+    }
+  } catch (error) {
+    console.error('Batch recognize error:', error)
+    ElMessage.error(error.response?.data?.error || '网络错误，请稍后重试')
+  } finally {
+    batchRecognizing.value = false
+  }
+}
+
+const clearBatchResults = () => {
+  batchResultsList.value = []
+  batchFilesList.value = []
 }
 
 const submitCorrection = async () => {
@@ -748,9 +909,160 @@ onMounted(() => {
   color: #999;
 }
 
+.batch-badge {
+  font-size: 11px;
+  background: #e8f4ff;
+  color: #1890ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 5px;
+}
+
 .empty-history {
   text-align: center;
   color: #999;
   padding: 20px;
+}
+
+/* 批量识别对话框样式 */
+.batch-upload-section {
+  margin-bottom: 20px;
+}
+
+.batch-upload-area {
+  border: 2px dashed #ddd;
+  border-radius: 12px;
+  padding: 30px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.batch-upload-area.dragging {
+  border-color: #667eea;
+  background: #f0f4ff;
+}
+
+.batch-upload-area.hasImages {
+  padding: 20px;
+}
+
+.batch-file-input {
+  display: none;
+}
+
+.batch-files-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
+}
+
+.batch-file-item {
+  position: relative;
+}
+
+.batch-file-thumbnail {
+  width: 100%;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid rgba(102, 126, 234, 0.3);
+}
+
+.batch-file-name {
+  display: block;
+  font-size: 11px;
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batch-remove-file {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ff6b6b;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.batch-upload-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.batch-upload-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.batch-upload-hint p {
+  color: #333;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.batch-hint {
+  font-size: 11px;
+  color: #999;
+}
+
+.batch-upload-actions {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.batch-results-section {
+  margin-top: 20px;
+}
+
+.batch-results-section h3 {
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+.batch-results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+}
+
+.batch-result-card {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #eee;
+}
+
+.batch-result-image {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.batch-result-info {
+  padding: 10px;
+  text-align: center;
+}
+
+.batch-breed-name {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.batch-confidence {
+  font-size: 11px;
+  color: #999;
 }
 </style>

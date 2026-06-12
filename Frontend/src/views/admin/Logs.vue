@@ -84,7 +84,7 @@
       </div>
       
       <!-- 详情弹窗 -->
-      <el-dialog title="日志详情" :visible.sync="showDetailModal" width="600px">
+      <el-dialog title="日志详情" v-model="showDetailModal" width="600px">
         <div v-if="selectedLog" class="log-detail">
           <div class="detail-item">
             <span class="label">ID:</span>

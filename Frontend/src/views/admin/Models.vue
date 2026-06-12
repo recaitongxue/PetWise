@@ -106,7 +106,7 @@
           <div v-else class="empty-state">暂无模型，请添加</div>
         </div>
         
-        <el-dialog title="编辑模型" :visible.sync="editDialogVisible" width="600px">
+        <el-dialog title="编辑模型" v-model="editDialogVisible" width="600px">
           <el-form :model="editForm" label-width="120px">
             <el-form-item label="模型名称">
               <el-input v-model="editForm.name" />

@@ -100,7 +100,7 @@
         
         <div v-else class="empty-state">暂无知识条目</div>
         
-        <el-dialog title="编辑知识" :visible.sync="editDialogVisible" width="700px">
+        <el-dialog title="编辑知识" v-model="editDialogVisible" width="700px">
           <el-form :model="editForm" label-width="100px">
             <el-form-item label="标题">
               <el-input v-model="editForm.title" />

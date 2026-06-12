@@ -15,7 +15,7 @@
               <el-input v-model="form.title" placeholder="请输入公告标题" />
             </el-form-item>
             <el-form-item label="内容">
-              <el-textarea v-model="form.content" placeholder="请输入公告内容" rows="4" />
+              <textarea v-model="form.content" placeholder="请输入公告内容" rows="4" class="custom-textarea" />
             </el-form-item>
             <el-form-item>
               <el-checkbox v-model="form.is_pinned">置顶公告</el-checkbox>
@@ -179,6 +179,27 @@ onMounted(() => {
 .add-section h3 {
   margin: 0 0 20px 0;
   font-size: 16px;
+}
+
+.custom-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 10px 15px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  font-size: 14px;
+  resize: vertical;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.custom-textarea:focus {
+  outline: none;
+  border-color: #409eff;
+}
+
+.custom-textarea::placeholder {
+  color: #999;
 }
 
 .list-section {

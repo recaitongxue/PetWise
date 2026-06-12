@@ -130,7 +130,7 @@
         
         <div v-else class="empty-state">暂无难样本</div>
         
-        <el-dialog title="重新标注" :visible.sync="relabelDialogVisible" width="500px">
+        <el-dialog title="重新标注" v-model="relabelDialogVisible" width="500px">
           <el-form :model="relabelForm" label-width="100px">
             <el-form-item label="原始识别">
               <span>{{ relabelForm.predicted_breed }}</span>
