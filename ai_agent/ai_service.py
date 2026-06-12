@@ -74,7 +74,9 @@ class AIAgentService:
              use_knowledge_base: bool = True,
              custom_prompt: Optional[str] = None,
              temperature: float = 0.7,
-             model: Optional[str] = None) -> Dict[str, Any]:
+             model: Optional[str] = None,
+             pet_context: Optional[Dict[str, Any]] = None,
+             breed_context: Optional[str] = None) -> Dict[str, Any]:
         """
         Main chat interface for pet-related queries
         
@@ -84,6 +86,8 @@ class AIAgentService:
             custom_prompt: Optional custom prompt name
             temperature: AI response temperature
             model: Optional AI model name to use
+            pet_context: Pet context information for personalized responses
+            breed_context: Breed context for the conversation
             
         Returns:
             Response dictionary with AI response
@@ -91,11 +95,27 @@ class AIAgentService:
         try:
             logger.info(f"Processing chat request: {user_message[:50]}...")
             
+            # 构建上下文提示词
+            context_prompt = user_message
+            if pet_context:
+                context_prompt = f"""宠物档案信息：
+- 姓名: {pet_context.get('name', '未知')}
+- 品种: {pet_context.get('breed', '未知')}
+- 年龄: {pet_context.get('age', '未知')}岁
+- 性别: {pet_context.get('gender', '未知')}
+- 绝育状态: {'已绝育' if pet_context.get('is_neutered') else '未绝育'}
+- 过敏史: {pet_context.get('allergies', '无')}
+
+用户问题: {user_message}
+
+请根据以上宠物档案信息，提供专业的建议和回答。"""
+            
             system_prompt = self.prompt_manager.get_combined_prompt(custom_prompt)
             
             if use_knowledge_base:
+                query_for_kb = context_prompt if pet_context else user_message
                 knowledge_results = self.knowledge_base.query_knowledge(
-                    user_message, limit=3
+                    query_for_kb, limit=3
                 )
                 
                 if knowledge_results:
@@ -103,15 +123,15 @@ class AIAgentService:
                         f"- {result['data']}" for result in knowledge_results
                     ])
                     response = self.api_client.chat_with_knowledge(
-                        user_message, knowledge_context, system_prompt, temperature, model
+                        context_prompt, knowledge_context, system_prompt, temperature, model
                     )
                 else:
                     response = self.api_client.simple_chat(
-                        user_message, system_prompt, temperature, model
+                        context_prompt, system_prompt, temperature, model
                     )
             else:
                 response = self.api_client.simple_chat(
-                    user_message, system_prompt, temperature, model
+                    context_prompt, system_prompt, temperature, model
                 )
             
             logger.info("Chat request processed successfully")
@@ -344,7 +364,78 @@ class AIAgentService:
             return "monitor_and_observe"
         else:
             return "general_advice"
-    
+
+    def structured_consultation(self,
+                              pet_id: int,
+                              symptoms: List[str],
+                              duration: Optional[str] = None,
+                              severity: str = "medium",
+                              additional_info: Optional[str] = None,
+                              pet_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Structured consultation for pet health issues
+        
+        Args:
+            pet_id: Pet ID
+            symptoms: List of symptoms
+            duration: Duration of symptoms
+            severity: Severity level
+            additional_info: Additional information
+            pet_context: Pet context information
+            
+        Returns:
+            Consultation result
+        """
+        try:
+            logger.info(f"Structured consultation - pet_id: {pet_id}, symptoms: {symptoms}")
+
+            consultation_prompt = f"""结构化问诊信息：
+
+宠物基本信息："""
+
+            if pet_context:
+                consultation_prompt += f"""
+- 姓名: {pet_context.get('name', '未知')}
+- 品种: {pet_context.get('breed', '未知')}
+- 年龄: {pet_context.get('age', '未知')}岁
+- 性别: {pet_context.get('gender', '未知')}
+- 体重: {pet_context.get('weight', '未知')}kg
+- 绝育状态: {'已绝育' if pet_context.get('is_neutered') else '未绝育'}
+- 过敏史: {pet_context.get('allergies', '无')}"""
+
+            consultation_prompt += f"""
+症状信息：
+- 主要症状: {', '.join(symptoms)}
+- 发病时长: {duration or '未知'}
+- 严重程度: {severity}
+- 补充信息: {additional_info or '无'}
+
+请根据以上结构化信息，提供：
+1. 专业的医疗建议和初步诊断意见
+2. 可能的原因分析
+3. 建议的检查项目（如需要）
+4. 日常护理建议"""
+
+            system_prompt = self.prompt_manager.get_system_prompt()
+
+            response = self.api_client.simple_chat(consultation_prompt, system_prompt, temperature=0.5)
+
+            logger.info("Structured consultation completed")
+            return {
+                "success": True,
+                "consultation": response.get("content", ""),
+                "recommendation": "建议尽快联系宠物医院进行专业诊断",
+                "timestamp": format_timestamp()
+            }
+
+        except Exception as e:
+            logger.error(f"Structured consultation failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "timestamp": format_timestamp()
+            }
+
     def knowledge_base_import(self, knowledge_data: Dict[str, Any],
                              category: str = "general") -> Dict[str, Any]:
         """

@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional
 class AIAgentClient:
     """Client for interacting with AI Agent Service"""
     
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = "http://localhost:8002"):
         self.base_url = base_url
     
     def _request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
@@ -26,7 +26,9 @@ class AIAgentClient:
              use_knowledge_base: bool = True,
              custom_prompt: Optional[str] = None,
              temperature: float = 0.7,
-             model: Optional[str] = None) -> Dict[str, Any]:
+             model: Optional[str] = None,
+             pet_context: Optional[Dict[str, Any]] = None,
+             breed_context: Optional[str] = None) -> Dict[str, Any]:
         """Chat with AI agent"""
         data = {
             "user_message": user_message,
@@ -37,6 +39,10 @@ class AIAgentClient:
             data["custom_prompt"] = custom_prompt
         if model:
             data["model"] = model
+        if pet_context:
+            data["pet_context"] = pet_context
+        if breed_context:
+            data["breed_context"] = breed_context
         
         return self._request("POST", "/v1/chat", json=data)
     
@@ -60,6 +66,26 @@ class AIAgentClient:
             "severity": severity
         }
         return self._request("POST", "/v1/emergency", json=data)
+
+    def structured_consultation(self, pet_id: int,
+                               symptoms: list,
+                               duration: Optional[str] = None,
+                               severity: str = "medium",
+                               additional_info: Optional[str] = None,
+                               pet_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Structured consultation"""
+        data = {
+            "pet_id": pet_id,
+            "symptoms": symptoms,
+            "severity": severity
+        }
+        if duration:
+            data["duration"] = duration
+        if additional_info:
+            data["additional_info"] = additional_info
+        if pet_context:
+            data["pet_context"] = pet_context
+        return self._request("POST", "/v1/structured-consultation", json=data)
     
     def analyze_image(self, image_data: str, analysis_type: str = "general") -> Dict[str, Any]:
         """Analyze pet image"""

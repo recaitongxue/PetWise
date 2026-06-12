@@ -13,39 +13,6 @@ agent_bp = Blueprint('agent', __name__)
 
 ai_client = AIAgentClient()
 
-def generate_llm_response(prompt, breed_context="", pet_context=None):
-    """Generate response from AI Agent service"""
-    try:
-        # 构建上下文提示词
-        context_prompt = prompt
-        if pet_context:
-            context_prompt = f"""
-宠物档案信息：
-- 姓名: {pet_context.get('name', '未知')}
-- 品种: {pet_context.get('breed', '未知')}
-- 年龄: {pet_context.get('age', '未知')}岁
-- 性别: {pet_context.get('gender', '未知')}
-- 绝育状态: {'已绝育' if pet_context.get('is_neutered') else '未绝育'}
-- 过敏史: {pet_context.get('allergies', '无')}
-
-用户问题: {prompt}
-
-请根据以上宠物档案信息，提供专业的建议和回答。
-"""
-
-        response = ai_client.chat(
-            user_message=context_prompt,
-            use_knowledge_base=True,
-            temperature=0.7
-        )
-
-        if response.get("success") and response.get("content"):
-            return response["content"]
-        else:
-            return f"抱歉，AI服务暂时不可用，请稍后重试。关于{breed_context}，建议咨询专业兽医获取专业建议。"
-    except Exception as e:
-        return f"抱歉，服务暂时不可用，请稍后重试。"
-
 def detect_sensitive_keywords(message):
     """检测敏感健康关键词"""
     sensitive_keywords = ['呕吐', '拉稀', '腹泻', '发烧', '咳嗽', '呼吸困难', '出血', '抽搐', '昏迷', '中毒', '误食']
@@ -80,12 +47,23 @@ def agent_chat():
         ''', (user_id, session_id, message, breed_context))
         db.commit()
 
-        response = generate_llm_response(message, breed_context, pet_context)
+        response = ai_client.chat(
+            user_message=message,
+            use_knowledge_base=True,
+            temperature=0.7,
+            pet_context=pet_context,
+            breed_context=breed_context
+        )
+
+        if response.get("success") and response.get("content"):
+            ai_response = response["content"]
+        else:
+            ai_response = f"抱歉，AI服务暂时不可用，请稍后重试。"
 
         db.execute('''
             INSERT INTO chat_history (user_id, session_id, role, message, breed_context, model_used)
             VALUES (?, ?, 'assistant', ?, ?, ?)
-        ''', (user_id, session_id, response, breed_context, 'ai_agent_service'))
+        ''', (user_id, session_id, ai_response, breed_context, 'ai_agent_service'))
         db.commit()
 
         # 检测敏感关键词
@@ -96,7 +74,7 @@ def agent_chat():
         return jsonify({
             "success": True,
             "session_id": session_id,
-            "response": response,
+            "response": ai_response,
             "model": 'ai_agent_service',
             "is_sensitive": is_sensitive,
             "suggest_consultation": is_sensitive
@@ -137,28 +115,12 @@ def agent_chat_stream():
 
         def generate():
             try:
-                # 构建上下文提示词
-                context_prompt = message
-                if pet_context:
-                    context_prompt = f"""
-宠物档案信息：
-- 姓名: {pet_context.get('name', '未知')}
-- 品种: {pet_context.get('breed', '未知')}
-- 年龄: {pet_context.get('age', '未知')}岁
-- 性别: {pet_context.get('gender', '未知')}
-- 绝育状态: {'已绝育' if pet_context.get('is_neutered') else '未绝育'}
-- 过敏史: {pet_context.get('allergies', '无')}
-
-用户问题: {message}
-
-请根据以上宠物档案信息，提供专业的建议和回答。
-"""
-
-                # 调用AI服务获取响应
                 response = ai_client.chat(
-                    user_message=context_prompt,
+                    user_message=message,
                     use_knowledge_base=True,
-                    temperature=0.7
+                    temperature=0.7,
+                    pet_context=pet_context,
+                    breed_context=breed_context
                 )
 
                 if response.get("success") and response.get("content"):
@@ -211,37 +173,23 @@ def structured_consultation():
         if not pet:
             return jsonify({"error": "Pet not found"}), 404
 
-        # 构建结构化问诊提示词
-        consultation_prompt = f"""
-结构化问诊信息：
+        pet_context = dict(pet)
 
-宠物基本信息：
-- 姓名: {pet['name']}
-- 品种: {pet['breed']}
-- 年龄: {pet['age']}岁
-- 性别: {pet['gender']}
-
-症状信息：
-- 主要症状: {', '.join(symptoms)}
-- 发病时长: {duration}
-- 严重程度: {severity}
-- 补充信息: {additional_info}
-
-请根据以上结构化信息，提供专业的医疗建议和初步诊断意见。
-"""
-
-        response = ai_client.chat(
-            user_message=consultation_prompt,
-            use_knowledge_base=True,
-            temperature=0.5
+        response = ai_client.structured_consultation(
+            pet_id=pet_id,
+            symptoms=symptoms,
+            duration=duration,
+            severity=severity,
+            additional_info=additional_info,
+            pet_context=pet_context
         )
 
-        if response.get("success") and response.get("content"):
+        if response.get("success"):
             log_action(db, user_id, 'structured_consultation', {'pet_id': pet_id, 'symptoms': symptoms, 'severity': severity})
             return jsonify({
                 "success": True,
-                "consultation": response["content"],
-                "recommendation": "建议尽快联系宠物医院进行专业诊断"
+                "consultation": response.get("consultation"),
+                "recommendation": response.get("recommendation", "建议尽快联系宠物医院进行专业诊断")
             })
         else:
             return jsonify({

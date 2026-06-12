@@ -54,6 +54,8 @@ class ChatRequest(BaseModel):
     custom_prompt: Optional[str] = Field(None, description="Custom prompt name (use null or omit for default)")
     temperature: float = Field(0.7, ge=0.0, le=2.0, description="AI response temperature")
     model: Optional[str] = Field(None, description="AI model name to use (e.g., deepseek-ai/DeepSeek-V3)")
+    pet_context: Optional[Dict[str, Any]] = Field(None, description="Pet context information for personalized responses")
+    breed_context: Optional[str] = Field(None, description="Breed context for the conversation")
 
 class ChatResponse(BaseModel):
     success: bool
@@ -75,6 +77,14 @@ class EmergencyRequest(BaseModel):
     symptoms: str = Field(..., description="Pet symptoms description")
     pet_type: str = Field(..., description="Type of pet")
     severity: str = Field("medium", description="Severity level")
+
+class StructuredConsultationRequest(BaseModel):
+    pet_id: int = Field(..., description="Pet ID")
+    symptoms: List[str] = Field(..., description="List of symptoms")
+    duration: Optional[str] = Field(None, description="Duration of symptoms")
+    severity: str = Field("medium", description="Severity level")
+    additional_info: Optional[str] = Field(None, description="Additional information")
+    pet_context: Optional[Dict[str, Any]] = Field(None, description="Pet context information")
 
 class KnowledgeImportRequest(BaseModel):
     knowledge_data: Dict[str, Any] = Field(..., description="Knowledge data")
@@ -240,7 +250,9 @@ async def chat(request: ChatRequest, http_request: Request):
             use_knowledge_base=request.use_knowledge_base,
             custom_prompt=request.custom_prompt if request.custom_prompt and request.custom_prompt != "string" else None,
             temperature=request.temperature,
-            model=request.model if request.model and request.model != "string" else None
+            model=request.model if request.model and request.model != "string" else None,
+            pet_context=request.pet_context,
+            breed_context=request.breed_context
         )
         
         if not response.get("success"):
@@ -356,7 +368,7 @@ async def handle_emergency(request: EmergencyRequest):
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        result = ai_service.handle_emergency(
+        result = ai_service.emergency_consultation(
             symptoms=request.symptoms,
             pet_type=request.pet_type,
             severity=request.severity
@@ -369,6 +381,30 @@ async def handle_emergency(request: EmergencyRequest):
         
     except Exception as e:
         logger.error(f"Emergency handling error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@v1_router.post("/structured-consultation", tags=["Structured Consultation"])
+async def handle_structured_consultation(request: StructuredConsultationRequest):
+    if not ai_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        result = ai_service.structured_consultation(
+            pet_id=request.pet_id,
+            symptoms=request.symptoms,
+            duration=request.duration,
+            severity=request.severity,
+            additional_info=request.additional_info,
+            pet_context=request.pet_context
+        )
+        
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error"))
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Structured consultation error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @v1_router.post("/knowledge/import", tags=["Knowledge Base"])
