@@ -278,27 +278,35 @@ async def stream_chat(request: ChatRequest):
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
-    try:
-        async def generate():
-            try:
-                for chunk in ai_service.stream_chat(
-                    user_message=request.user_message,
-                    use_knowledge_base=request.use_knowledge_base,
-                    custom_prompt=request.custom_prompt if request.custom_prompt and request.custom_prompt != "string" else None,
-                    temperature=request.temperature,
-                    model=request.model if request.model and request.model != "string" else None
-                ):
-                    yield f"data: {chunk}\n\n"
-                yield "data: [DONE]\n\n"
-            except Exception as e:
-                logger.error(f"Streaming error: {e}")
-                yield f"data: Error: {str(e)}\n\n"
-        
-        return StreamingResponse(generate(), media_type="text/event-stream")
-        
-    except Exception as e:
-        logger.error(f"Stream endpoint error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    async def generate():
+        try:
+            for chunk in ai_service.stream_chat(
+                user_message=request.user_message,
+                use_knowledge_base=request.use_knowledge_base,
+                custom_prompt=request.custom_prompt if request.custom_prompt and request.custom_prompt != "string" else None,
+                temperature=request.temperature,
+                model=request.model if request.model and request.model != "string" else None
+            ):
+                yield f"data: {chunk}\n\n"
+                # 强制刷新缓冲区
+                import asyncio
+                await asyncio.sleep(0)
+            yield "data: [DONE]\n\n"
+        except Exception as e:
+            logger.error(f"Streaming error: {e}")
+            yield f"data: Error: {str(e)}\n\n"
+    
+    from fastapi.responses import StreamingResponse
+    response = StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+    return response
 
 @v1_router.post("/analyze-image", tags=["Image Analysis"])
 async def analyze_image(request: ImageAnalysisRequest):

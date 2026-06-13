@@ -73,7 +73,7 @@ init_app()
 if __name__ == '__main__':
     ai_agent_process = start_ai_agent()
     try:
-        app.run(host='0.0.0.0', port=5000, debug=True)
+        app.run(host='0.0.0.0', port=5000, debug=False)
     finally:
         if ai_agent_process:
             ai_agent_process.terminate()

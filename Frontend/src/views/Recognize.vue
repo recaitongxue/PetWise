@@ -5,7 +5,7 @@
       <h1 class="page-title">🐾 宠物品种识别</h1>
       
       <div class="recognize-content" :class="{ 'has-result': result }">
-        <!-- 左侧面板：上传区域 + 品种详情 -->
+        <!-- 左侧面板：上传区域 + 识别结果 -->
         <div v-if="result" class="left-panel">
           <!-- 上传区域 -->
           <div class="upload-section">
@@ -55,50 +55,30 @@
             </div>
           </div>
 
-          <!-- 品种详情 -->
-          <div v-if="breedInfo" class="breed-info-section">
-            <h3>品种详情</h3>
-            <div class="breed-info-grid">
-              <div class="info-column">
-                <div class="info-item">
-                  <span class="label">类别</span>
-                  <span class="value">{{ breedInfo.category === 'cat' ? '🐱 猫' : '🐶 狗' }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">起源</span>
-                  <span class="value">{{ breedInfo.origin }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">性格</span>
-                  <span class="value">{{ breedInfo.personality }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">寿命</span>
-                  <span class="value">{{ breedInfo.lifespan }}</span>
+          <!-- 识别结果 -->
+          <div class="result-card-section">
+            <h3>识别结果</h3>
+            <div class="result-card">
+              <div class="result-header">
+                <div class="breed-icon">🐾</div>
+                <div class="breed-name">{{ result.breed }}</div>
+                <div class="confidence">置信度: {{ (result.confidence * 100).toFixed(2) }}%</div>
+              </div>
+
+              <div v-if="result.top5" class="top5-section">
+                <h4>TOP 5 候选</h4>
+                <div class="top5-list">
+                  <div 
+                    v-for="(item, index) in result.top5" 
+                    :key="index"
+                    class="top5-item"
+                  >
+                    <span class="rank">{{ index + 1 }}</span>
+                    <span class="class-name">{{ item.class }}</span>
+                    <span class="conf-value">{{ (item.confidence * 100).toFixed(2) }}%</span>
+                  </div>
                 </div>
               </div>
-              <div class="info-column">
-                <div class="info-item">
-                  <span class="label">饲养建议</span>
-                  <span class="value">{{ breedInfo.feeding }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">护理要点</span>
-                  <span class="value">{{ breedInfo.care }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">常见问题</span>
-                  <span class="value">{{ breedInfo.common_issues }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">适合人群</span>
-                  <span class="value">{{ breedInfo.suitable_for }}</span>
-                </div>
-              </div>
-            </div>
-            <div class="info-actions">
-              <el-button @click="addFavorite">❤️ 收藏</el-button>
-              <el-button @click="goToBreedDetail">查看详情</el-button>
             </div>
           </div>
         </div>
@@ -151,31 +131,63 @@
           </div>
         </div>
 
-        <!-- 右侧区域：识别结果 -->
+        <!-- 右侧区域：品种详情 + 用户纠错 -->
         <div v-if="result" class="result-section">
-          <h3>识别结果</h3>
-          
-          <!-- 识别卡片 -->
-          <div class="result-card">
-            <div class="result-header">
-              <div class="breed-icon">🐾</div>
-              <div class="breed-name">{{ result.breed }}</div>
-              <div class="confidence">置信度: {{ (result.confidence * 100).toFixed(2) }}%</div>
+          <!-- 品种详情 -->
+          <div v-if="breedInfo" class="breed-info-section">
+            <div class="breed-header">
+              <h3>品种详情</h3>
+              <div class="breed-title">{{ breedInfo.category === 'cat' ? '🐱' : '🐶' }} {{ breedInfo.breed }}</div>
             </div>
-
-            <div v-if="result.top5" class="top5-section">
-              <h4>TOP 5 候选</h4>
-              <div class="top5-list">
-                <div 
-                  v-for="(item, index) in result.top5" 
-                  :key="index"
-                  class="top5-item"
-                >
-                  <span class="rank">{{ index + 1 }}</span>
-                  <span class="class-name">{{ item.class }}</span>
-                  <span class="conf-value">{{ (item.confidence * 100).toFixed(2) }}%</span>
+            <div class="breed-info-grid">
+              <div class="info-column">
+                <div class="info-item">
+                  <span class="label">🐾 动物类别</span>
+                  <span class="value">{{ breedInfo.category === 'cat' ? '猫科动物 (Felidae)' : '犬科动物 (Canidae)' }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">🌍 起源国家</span>
+                  <span class="value">{{ breedInfo.origin }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">🎭 性格特点</span>
+                  <span class="value">{{ breedInfo.personality }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">⏱️ 预期寿命</span>
+                  <span class="value">{{ breedInfo.lifespan }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">🏠 适宜环境</span>
+                  <span class="value">{{ breedInfo.category === 'cat' ? '室内饲养，需要活动空间' : '室内外均可，需要充足运动' }}</span>
                 </div>
               </div>
+              <div class="info-column">
+                <div class="info-item">
+                  <span class="label">🍽️ 饮食建议</span>
+                  <span class="value">{{ breedInfo.feeding }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">🛁 护理要点</span>
+                  <span class="value">{{ breedInfo.care }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">⚕️ 常见健康问题</span>
+                  <span class="value">{{ breedInfo.common_issues }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">👨‍👩‍👧 适合人群</span>
+                  <span class="value">{{ breedInfo.suitable_for }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">🎯 品种用途</span>
+                  <span class="value">{{ breedInfo.category === 'cat' ? '伴侣宠物，捕鼠能手' : '伴侣犬、工作犬、护卫犬' }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="info-actions">
+              <el-button @click="addFavorite">❤️ 收藏</el-button>
+              <el-button @click="goToBreedDetail">📖 查看详情</el-button>
             </div>
           </div>
 
@@ -316,10 +328,13 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
 import Navbar from '@/components/Navbar.vue'
 import { recognizeAPI } from '@/api/recognize'
 import { favoritesAPI } from '@/api/favorites'
 import { breedAPI } from '@/api/breed'
+
+const router = useRouter()
 
 const fileInput = ref(null)
 const isDragging = ref(false)
@@ -616,7 +631,7 @@ const addFavorite = async () => {
 
 const goToBreedDetail = () => {
   if (breedInfo.value) {
-    window.location.href = `/breed/${encodeURIComponent(breedInfo.value.breed)}`
+    router.push(`/breed/${encodeURIComponent(breedInfo.value.breed)}`)
   }
 }
 
@@ -660,7 +675,7 @@ onMounted(() => {
 
 .recognize-content.has-result {
   flex-direction: row;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: flex-start;
   gap: 20px;
 }
@@ -669,7 +684,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 15px;
-  width: 400px;
+  width: 320px;
 }
 
 .upload-section {
@@ -686,11 +701,41 @@ onMounted(() => {
   border-radius: 12px;
   padding: 15px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+  margin-bottom: 15px;
+}
+
+.breed-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.breed-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.breed-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #4a90d9;
+}
+
+.result-card-section {
+  background: white;
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
 }
 
 .result-section {
   flex: 1;
-  min-width: 500px;
+  min-width: 600px;
   background: white;
   border-radius: 12px;
   padding: 20px;
@@ -970,6 +1015,13 @@ onMounted(() => {
 
 .correction-section > *:not(:last-child) {
   margin-bottom: 8px;
+}
+
+.correction-section :deep(.el-textarea__inner) {
+  border-width: 0px;
+  border-style: solid;
+  border-color: #000000;
+  height: 100px;
 }
 
 .history-section {

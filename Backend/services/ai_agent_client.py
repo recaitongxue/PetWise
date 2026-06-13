@@ -4,7 +4,7 @@ Provides interface to call ai_agent services from backend
 """
 import requests
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Generator
 
 class AIAgentClient:
     """Client for interacting with AI Agent Service"""
@@ -21,6 +21,43 @@ class AIAgentClient:
             return response.json()
         except requests.exceptions.RequestException as e:
             return {"success": False, "error": str(e)}
+    
+    def stream_chat(self, user_message: str,
+                    use_knowledge_base: bool = True,
+                    custom_prompt: Optional[str] = None,
+                    temperature: float = 0.7,
+                    model: Optional[str] = None,
+                    pet_context: Optional[Dict[str, Any]] = None,
+                    breed_context: Optional[str] = None) -> Generator[str, None, None]:
+        """Stream chat with AI agent (returns generator)"""
+        url = f"{self.base_url}/v1/stream"
+        data = {
+            "user_message": user_message,
+            "use_knowledge_base": use_knowledge_base,
+            "temperature": temperature
+        }
+        if custom_prompt:
+            data["custom_prompt"] = custom_prompt
+        if model:
+            data["model"] = model
+        if pet_context:
+            data["pet_context"] = pet_context
+        if breed_context:
+            data["breed_context"] = breed_context
+        
+        try:
+            response = requests.post(url, json=data, stream=True)
+            response.raise_for_status()
+            
+            buffer = ""
+            for chunk in response.iter_content(chunk_size=1024, decode_unicode=True):
+                buffer += chunk
+                while "\n\n" in buffer:
+                    line, buffer = buffer.split("\n\n", 1)
+                    if line.startswith("data: "):
+                        yield line[6:]
+        except requests.exceptions.RequestException as e:
+            yield f'Error: {str(e)}'
     
     def chat(self, user_message: str, 
              use_knowledge_base: bool = True,

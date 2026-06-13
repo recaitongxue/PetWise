@@ -204,11 +204,12 @@
               <option value="activity">活动</option>
               <option value="mood">心情</option>
               <option value="checkup">体检</option>
+              <option value="consultation">问诊记录</option>
             </select>
           </div>
           
           <div v-if="records.length" class="records-list">
-            <div v-for="record in records" :key="record.id" class="record-card">
+            <div v-for="record in records" :key="record.id" class="record-card" @click="openConsultationDetail(record)" :class="{ 'clickable': record.record_type === 'consultation' }">
               <div class="record-header">
                 <span class="record-type-badge" :class="record.record_type">
                   {{ getRecordIcon(record) }} {{ getRecordTypeLabel(record.record_type) }}
@@ -244,9 +245,14 @@
                   <span class="label">备注:</span>
                   <span class="value">{{ record.notes }}</span>
                 </div>
+                <!-- 问诊记录特殊显示 -->
+                <div v-if="record.record_type === 'consultation'" class="record-item consultation-preview">
+                  <span class="label">症状:</span>
+                  <span class="value">{{ record.consultation_data ? JSON.parse(record.consultation_data).symptoms?.join(', ') : '--' }}</span>
+                </div>
               </div>
               <div class="record-actions">
-                <button @click="deleteRecord(record.id)" class="delete-btn">删除</button>
+                <button @click.stop="deleteRecord(record.id)" class="delete-btn">删除</button>
               </div>
             </div>
           </div>
@@ -331,6 +337,77 @@
         <el-button type="primary" @click="submitRecord">添加</el-button>
       </div>
     </el-dialog>
+    
+    <!-- 问诊详情弹窗 -->
+    <el-dialog title="👩⚕️ 问诊记录详情" v-model="showConsultationModal" width="700px" @close="closeConsultationModal">
+      <div v-if="currentConsultation" class="consultation-detail">
+        <div class="detail-section">
+          <h4>📝 基本信息</h4>
+          <div class="detail-row">
+            <span class="detail-label">问诊日期:</span>
+            <span class="detail-value">{{ currentConsultation.record_date }}</span>
+          </div>
+          <div v-if="consultationData.pet_name" class="detail-row">
+            <span class="detail-label">宠物名称:</span>
+            <span class="detail-value">{{ consultationData.pet_name }}</span>
+          </div>
+          <div v-if="consultationData.pet_type" class="detail-row">
+            <span class="detail-label">宠物类型:</span>
+            <span class="detail-value">{{ consultationData.pet_type }}</span>
+          </div>
+          <div v-if="consultationData.pet_breed" class="detail-row">
+            <span class="detail-label">宠物品种:</span>
+            <span class="detail-value">{{ consultationData.pet_breed }}</span>
+          </div>
+          <div v-if="consultationData.pet_age" class="detail-row">
+            <span class="detail-label">宠物年龄:</span>
+            <span class="detail-value">{{ consultationData.pet_age }}</span>
+          </div>
+          <div v-if="consultationData.pet_weight" class="detail-row">
+            <span class="detail-label">宠物体重:</span>
+            <span class="detail-value">{{ consultationData.pet_weight }} kg</span>
+          </div>
+        </div>
+        
+        <div class="detail-section" v-if="currentConsultation.consultation_data">
+          <h4>🏥 问诊信息</h4>
+          <div v-if="consultationData.symptoms" class="detail-row">
+            <span class="detail-label">症状:</span>
+            <span class="detail-value">{{ consultationData.symptoms.join(', ') }}</span>
+          </div>
+          <div v-if="consultationData.duration" class="detail-row">
+            <span class="detail-label">发病时长:</span>
+            <span class="detail-value">{{ consultationData.duration }}</span>
+          </div>
+          <div v-if="consultationData.severity" class="detail-row">
+            <span class="detail-label">严重程度:</span>
+            <span class="detail-value">{{ consultationData.severity }}</span>
+          </div>
+          <div v-if="consultationData.additional_info" class="detail-row">
+            <span class="detail-label">补充信息:</span>
+            <span class="detail-value">{{ consultationData.additional_info }}</span>
+          </div>
+        </div>
+        
+        <div class="detail-section" v-if="consultationData.consultation_result">
+          <h4>💡 AI分析建议</h4>
+          <div class="consultation-result">
+            <div v-html="renderMarkdown(consultationData.consultation_result)"></div>
+          </div>
+        </div>
+        
+        <div class="detail-section" v-if="consultationData.recommendation">
+          <h4>📋 行动建议</h4>
+          <div class="consultation-result recommendation">
+            <p>{{ consultationData.recommendation }}</p>
+          </div>
+        </div>
+      </div>
+      
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="closeConsultationModal">关闭</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -349,6 +426,8 @@ const allRecords = ref([])
 const allPetsAllRecords = ref([])
 const recordType = ref('')
 const showAddModal = ref(false)
+const showConsultationModal = ref(false)
+const currentConsultation = ref(null)
 
 const pagination = reactive({
   page: 1,
@@ -374,7 +453,8 @@ const recordTypeLabels = {
   stool: '排便',
   activity: '活动',
   mood: '心情',
-  checkup: '体检'
+  checkup: '体检',
+  consultation: '问诊记录'
 }
 
 const recordTypeIcons = {
@@ -383,7 +463,8 @@ const recordTypeIcons = {
   stool: '💩',
   activity: '🏃',
   mood: '😊',
-  checkup: '🩺'
+  checkup: '🩺',
+  consultation: '👩⚕️'
 }
 
 // 总体统计 - 所有宠物
@@ -467,6 +548,7 @@ const getRecordValue = (record) => {
     case 'activity': return getActivityLevel(record.activity_level)
     case 'mood': return getMood(record.mood)
     case 'checkup': return record.notes || '已完成'
+    case 'consultation': return '点击查看详情'
     default: return '--'
   }
 }
@@ -489,6 +571,35 @@ const getMood = (mood) => {
 const formatDate = (dateStr) => {
   if (!dateStr) return '--'
   return dateStr.split(' ')[0]
+}
+
+// 解析问诊数据
+const consultationData = computed(() => {
+  if (!currentConsultation.value?.consultation_data) return {}
+  try {
+    return JSON.parse(currentConsultation.value.consultation_data)
+  } catch {
+    return {}
+  }
+})
+
+// 简单的Markdown渲染
+const renderMarkdown = (text) => {
+  if (!text) return ''
+  let html = text
+    .replace(/### (.+)/g, '<h3>$1</h3>')
+    .replace(/## (.+)/g, '<h2>$1</h2>')
+    .replace(/### (.+)/g, '<h3>$1</h3>')
+    .replace(/#### (.+)/g, '<h4>$1</h4>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^\- (.+)$/gm, '<li>$1</li>')
+    .replace(/^(\d+)\. (.+)$/gm, '<li>$1. $2</li>')
+    .replace(/^\*\*\*$/gm, '<hr>')
+    .replace(/\n/g, '<br>')
+    .replace(/<li>/g, '<ul><li>')
+    .replace(/<\/li>(?!<li>)/g, '</li></ul>')
+  return html
 }
 
 const calculateWeightChange = () => {
@@ -617,6 +728,18 @@ const resetForm = () => {
   form.activity_level = ''
   form.mood = ''
   form.notes = ''
+}
+
+const openConsultationDetail = (record) => {
+  if (record.record_type === 'consultation') {
+    currentConsultation.value = record
+    showConsultationModal.value = true
+  }
+}
+
+const closeConsultationModal = () => {
+  showConsultationModal.value = false
+  currentConsultation.value = null
 }
 
 const prevPage = () => {
@@ -1056,6 +1179,87 @@ onMounted(() => {
 .empty-state p {
   color: #666;
   margin: 0;
+}
+
+/* 问诊记录样式 */
+.record-type-badge.consultation { background: #e8f5e9; color: #2e7d32; }
+.record-card.clickable {
+  cursor: pointer;
+  transition: box-shadow 0.2s ease;
+}
+.record-card.clickable:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.consultation-preview {
+  width: 100%;
+}
+
+/* 问诊详情弹窗 */
+.consultation-detail {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.detail-section {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.detail-section:last-child {
+  border-bottom: none;
+}
+
+.detail-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  color: #333;
+}
+
+.detail-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.detail-label {
+  color: #666;
+  font-weight: 500;
+  min-width: 80px;
+}
+
+.detail-value {
+  color: #333;
+}
+
+.consultation-result {
+  background: #f9fafb;
+  padding: 15px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.consultation-result h2,
+.consultation-result h3,
+.consultation-result h4 {
+  margin-top: 15px;
+  margin-bottom: 8px;
+}
+
+.consultation-result ul {
+  margin: 5px 0;
+  padding-left: 20px;
+}
+
+.consultation-result li {
+  margin-bottom: 4px;
+}
+
+.consultation-result strong {
+  color: #667eea;
 }
 
 /* 响应式 */

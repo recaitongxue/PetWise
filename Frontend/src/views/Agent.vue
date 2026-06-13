@@ -164,7 +164,17 @@
         </div>
         
         <div v-if="consultationResult" class="consultation-result">
-          <h3>问诊结果</h3>
+          <div class="result-header">
+            <h3>问诊结果</h3>
+            <div class="result-actions">
+              <button class="action-btn export-btn" @click="exportCurrentConsultation">
+                📄 导出MD
+              </button>
+              <button class="action-btn save-btn" @click="saveConsultationToHealth" :disabled="isSaving || savedRecordId">
+                {{ savedRecordId ? '✅ 已保存' : (isSaving ? '保存中...' : '💾 保存到健康记录') }}
+              </button>
+            </div>
+          </div>
           <div class="result-content">
             {{ consultationResult }}
           </div>
@@ -211,6 +221,7 @@ import { ElMessage } from 'element-plus'
 import Navbar from '@/components/Navbar.vue'
 import { agentAPI } from '@/api/agent'
 import { petsAPI } from '@/api/pets'
+import { healthAPI } from '@/api/health'
 
 const currentMode = ref('chat')
 const messages = ref([
@@ -240,6 +251,11 @@ const consultationForm = reactive({
 })
 
 const consultationResult = ref('')
+const consultationRecommendation = ref('')
+const lastConsultationResponse = ref({})
+const isExporting = ref(false)
+const isSaving = ref(false)
+const savedRecordId = ref(null)
 
 const symptoms = [
   '呕吐', '拉稀', '腹泻', '发烧', '咳嗽', 
@@ -278,8 +294,12 @@ const loadHistory = async () => {
 const checkAgentHealth = async () => {
   try {
     const response = await agentAPI.healthCheck()
+    console.log('Health check response:', response)
+    console.log('Response status:', response.status)
     agentOnline.value = response.status === 'healthy'
+    console.log('Agent online status:', agentOnline.value)
   } catch (error) {
+    console.error('Health check error:', error)
     agentOnline.value = false
   }
 }
@@ -356,18 +376,18 @@ const sendNormalMessage = async (message) => {
 const sendStreamMessage = async (message) => {
   isTyping.value = true
   
-  const assistantMessage = {
+  const assistantMessage = reactive({
     isUser: false,
     content: '',
     time: new Date().toLocaleTimeString(),
     isStreaming: true,
     displayedContent: ''
-  }
+  })
   messages.value.push(assistantMessage)
   
   try {
-    // 使用 EventSource 或 fetch 进行 SSE 流式响应
-    const response = await fetch('http://localhost:5000/api/agent/chat/stream', {
+    console.log('Starting stream request...')
+    const response = await fetch('/api/agent/chat/stream', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -379,45 +399,78 @@ const sendStreamMessage = async (message) => {
       })
     })
     
+    console.log('Stream response status:', response.status, response.statusText)
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    if (!response.body) {
+      throw new Error('Response body is null')
+    }
+    
     const reader = response.body.getReader()
-    const decoder = new TextDecoder()
+    const decoder = new TextDecoder('utf-8')
+    let buffer = ''
+    
+    console.log('Starting to read stream...')
     
     while (true) {
       const { done, value } = await reader.read()
-      if (done) break
       
-      const chunk = decoder.decode(value)
-      const lines = chunk.split('\n')
+      console.log('Stream read:', { done, value: value ? `(${value.length} bytes)` : null })
       
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            const data = JSON.parse(line.substring(6))
-            
-            if (data.content) {
-              assistantMessage.displayedContent += data.content
-              assistantMessage.content = assistantMessage.displayedContent
+      if (value) {
+        buffer += decoder.decode(value, { stream: !done })
+        console.log('Buffer content:', buffer)
+        
+        let lineEnd
+        while ((lineEnd = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.substring(0, lineEnd).trim()
+          buffer = buffer.substring(lineEnd + 1)
+          
+          if (line.startsWith('data: ')) {
+            try {
+              const jsonStr = line.substring(5).trim()
+              console.log('Received data:', jsonStr)
+              if (jsonStr) {
+                const data = JSON.parse(jsonStr)
+                
+                if (data.content) {
+                  assistantMessage.displayedContent += data.content
+                  assistantMessage.content = assistantMessage.displayedContent
+                  console.log('Updated displayedContent:', assistantMessage.displayedContent)
+                  scrollToBottom()
+                }
+                
+                if (data.done) {
+                  assistantMessage.isStreaming = false
+                  console.log('Stream completed')
+                  break
+                }
+                
+                if (data.error) {
+                  assistantMessage.isStreaming = false
+                  assistantMessage.content = data.error
+                  assistantMessage.isError = true
+                  console.error('Stream error:', data.error)
+                  break
+                }
+              }
+            } catch (e) {
+              console.error('JSON parse error:', e, 'line:', line)
             }
-            
-            if (data.done) {
-              assistantMessage.isStreaming = false
-              assistantMessage.content = assistantMessage.displayedContent
-            }
-            
-            if (data.error) {
-              assistantMessage.isStreaming = false
-              assistantMessage.content = data.error
-              assistantMessage.isError = true
-            }
-            
-            scrollToBottom()
-          } catch (e) {
-            console.error('Parse error:', e)
           }
         }
       }
+      
+      if (done) {
+        console.log('Stream reader done')
+        break
+      }
     }
   } catch (error) {
+    console.error('Stream error:', error)
     assistantMessage.isStreaming = false
     assistantMessage.content = '抱歉，流式响应暂时不可用，请关闭流式输出模式。'
     assistantMessage.isError = true
@@ -471,6 +524,9 @@ const handleEmergency = async () => {
 }
 
 const submitConsultation = async () => {
+  console.log('canSubmitConsultation:', canSubmitConsultation.value)
+  console.log('consultationForm:', consultationForm)
+  
   if (!canSubmitConsultation.value) {
     ElMessage.error('请填写完整的问诊信息')
     return
@@ -478,8 +534,12 @@ const submitConsultation = async () => {
   
   isTyping.value = true
   consultationResult.value = ''
+  consultationRecommendation.value = ''
+  lastConsultationResponse.value = {}
+  savedRecordId.value = null
   
   try {
+    console.log('Sending structured consultation request...')
     const response = await agentAPI.structuredConsultation({
       pet_id: consultationForm.petId,
       symptoms: consultationForm.symptoms,
@@ -488,14 +548,187 @@ const submitConsultation = async () => {
       additional_info: consultationForm.additionalInfo
     })
     
+    console.log('Structured consultation response:', response)
+    
     if (response.success) {
-      consultationResult.value = response.consultation
+      consultationResult.value = response.consultation || ''
+      consultationRecommendation.value = response.recommendation || ''
+      lastConsultationResponse.value = response
+      
+      // 诊断成功后自动保存到健康记录（静默模式）
+      await saveConsultationToHealth(false)
+    } else {
+      ElMessage.error(response.error || '问诊失败')
     }
   } catch (error) {
-    ElMessage.error('问诊提交失败')
+    console.error('Structured consultation error:', error)
+    ElMessage.error('问诊失败，请稍后重试')
   } finally {
     isTyping.value = false
   }
+}
+
+// 保存问诊结果到健康记录
+const saveConsultationToHealth = async (showMessages = true) => {
+  if (!consultationForm.petId) {
+    if (showMessages) {
+      ElMessage.error('请先选择宠物')
+    }
+    return
+  }
+  
+  isSaving.value = true
+  
+  try {
+    console.log('saveConsultationToHealth - preparing data...')
+    console.log('symptoms:', consultationForm.symptoms)
+    console.log('duration:', consultationForm.duration)
+    console.log('severity:', ['轻微', '较轻', '中等', '较重', '严重'][consultationForm.severity - 1])
+    console.log('consultationResult:', consultationResult.value?.substring?.(0, 100) + '...')
+    console.log('recommendation:', consultationRecommendation.value)
+    console.log('additionalInfo:', consultationForm.additionalInfo)
+    
+    const response = await healthAPI.saveConsultationRecord(consultationForm.petId, {
+      symptoms: consultationForm.symptoms,
+      duration: consultationForm.duration,
+      severity: ['轻微', '较轻', '中等', '较重', '严重'][consultationForm.severity - 1],
+      consultation_result: consultationResult.value,
+      recommendation: consultationRecommendation.value,
+      additional_info: consultationForm.additionalInfo,
+      full_response: lastConsultationResponse.value
+    })
+    
+    console.log('saveConsultationToHealth response type:', typeof response)
+    console.log('saveConsultationToHealth response:', response)
+    
+    if (response && response.success) {
+      savedRecordId.value = response.record_id
+      if (showMessages) {
+        ElMessage.success('已保存到健康记录')
+      }
+    } else {
+      if (showMessages) {
+        ElMessage.error(response?.error || '保存失败')
+      } else {
+        console.warn('Auto-save failed:', response?.error)
+      }
+    }
+  } catch (error) {
+    console.error('Save consultation error:', error)
+    if (showMessages) {
+      ElMessage.error('保存失败，请稍后重试')
+    }
+  } finally {
+    isSaving.value = false
+  }
+}
+
+// 导出问诊结果为MD文件
+const exportConsultationMD = async () => {
+  // 如果还没有保存记录，先保存
+  if (!savedRecordId.value) {
+    await saveConsultationToHealth()
+    if (!savedRecordId.value) {
+      ElMessage.error('请先保存问诊记录')
+      return
+    }
+  }
+  
+  isExporting.value = true
+  
+  try {
+    const response = await healthAPI.exportConsultationMD(consultationForm.petId, savedRecordId.value)
+    
+    if (response.success) {
+      // 创建Blob并下载
+      const blob = new Blob([response.content], { type: 'text/markdown;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = response.filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      
+      ElMessage.success('导出成功')
+    } else {
+      ElMessage.error(response.error || '导出失败')
+    }
+  } catch (error) {
+    console.error('Export consultation error:', error)
+    ElMessage.error('导出失败，请稍后重试')
+  } finally {
+    isExporting.value = false
+  }
+}
+
+// 直接导出当前问诊结果（不依赖已保存记录）
+const exportCurrentConsultation = () => {
+  const pet = pets.value.find(p => p.id === consultationForm.petId)
+  const petName = pet?.name || '宠物'
+  const petType = pet?.species || '未知'
+  const petBreed = pet?.breed || '未知'
+  
+  const severityText = ['轻微', '较轻', '中等', '较重', '严重'][consultationForm.severity - 1]
+  const timestamp = new Date().toLocaleString('zh-CN')
+  
+  const mdContent = `# 🏥 PetWise AI问诊记录
+
+## 📋 基本信息
+
+| 项目 | 内容 |
+|------|------|
+| **宠物名称** | ${petName} |
+| **宠物类型** | ${petType} |
+| **宠物品种** | ${petBreed} |
+| **问诊时间** | ${timestamp} |
+
+## 🔍 症状信息
+
+### 主要症状
+${consultationForm.symptoms.map(s => `- ${s}`).join('\n')}
+
+### 发病时长
+${consultationForm.duration || '未记录'}
+
+### 严重程度
+${severityText}
+
+### 补充信息
+${consultationForm.additionalInfo || '无'}
+
+---
+
+## 💊 AI问诊分析
+
+${consultationResult.value}
+
+---
+
+## ⚠️ 免责声明
+
+本问诊结果由PetWise AI助手生成，仅供参考，不能替代专业兽医诊断。
+如您的宠物出现严重症状，请尽快联系专业宠物医院就诊。
+
+---
+
+*本记录由 PetWise 智能宠物管理系统自动生成*
+*生成时间: ${timestamp}*
+`
+
+  // 创建Blob并下载
+  const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `问诊记录_${petName}_${new Date().toISOString().split('T')[0]}.md`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+  
+  ElMessage.success('导出成功')
 }
 
 const clearHistory = async () => {
@@ -882,6 +1115,60 @@ onMounted(() => {
   background: #f0f9ff;
   border-radius: 12px;
   border: 1px solid #409eff;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.result-header h3 {
+  margin: 0;
+  color: #409eff;
+}
+
+.result-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.export-btn {
+  background: #67c23a;
+  color: white;
+}
+
+.export-btn:hover:not(:disabled) {
+  background: #5daf34;
+}
+
+.save-btn {
+  background: #409eff;
+  color: white;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #337ecc;
 }
 
 .consultation-result h3 {
