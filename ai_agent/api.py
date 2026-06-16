@@ -56,6 +56,8 @@ class ChatRequest(BaseModel):
     model: Optional[str] = Field(None, description="AI model name to use (e.g., deepseek-ai/DeepSeek-V3)")
     pet_context: Optional[Dict[str, Any]] = Field(None, description="Pet context information for personalized responses")
     breed_context: Optional[str] = Field(None, description="Breed context for the conversation")
+    api_key: Optional[str] = Field(None, description="API key for the AI service")
+    base_url: Optional[str] = Field(None, description="Base URL for the AI service")
 
 class ChatResponse(BaseModel):
     success: bool
@@ -252,7 +254,9 @@ async def chat(request: ChatRequest, http_request: Request):
             temperature=request.temperature,
             model=request.model if request.model and request.model != "string" else None,
             pet_context=request.pet_context,
-            breed_context=request.breed_context
+            breed_context=request.breed_context,
+            api_key=request.api_key,
+            base_url=request.base_url
         )
         
         if not response.get("success"):
@@ -285,10 +289,11 @@ async def stream_chat(request: ChatRequest):
                 use_knowledge_base=request.use_knowledge_base,
                 custom_prompt=request.custom_prompt if request.custom_prompt and request.custom_prompt != "string" else None,
                 temperature=request.temperature,
-                model=request.model if request.model and request.model != "string" else None
+                model=request.model if request.model and request.model != "string" else None,
+                api_key=request.api_key,
+                base_url=request.base_url
             ):
                 yield f"data: {chunk}\n\n"
-                # 强制刷新缓冲区
                 import asyncio
                 await asyncio.sleep(0)
             yield "data: [DONE]\n\n"

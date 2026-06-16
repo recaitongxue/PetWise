@@ -58,7 +58,7 @@ def agent_chat():
         if response.get("success") and response.get("content"):
             ai_response = response["content"]
         else:
-            ai_response = f"抱歉，AI服务暂时不可用，请稍后重试。"
+            ai_response = f"抱歉，AI服务暂时不可用，请稍后重试。错误: {response.get('error', '未知')}"
 
         db.execute('''
             INSERT INTO chat_history (user_id, session_id, role, message, breed_context, model_used)

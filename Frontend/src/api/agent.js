@@ -46,7 +46,7 @@ export const agentAPI = {
 
   // 健康检查
   healthCheck() {
-    return axios.get(`${AGENT_BASE}/health`)
+    return axios.get(`${AGENT_BASE}/health`, { timeout: 10000 })
   },
 
   // 获取智能体信息

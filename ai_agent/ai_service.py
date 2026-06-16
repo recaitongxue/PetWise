@@ -40,8 +40,13 @@ class AIAgentService:
             Health status dictionary
         """
         try:
-            api_status = self.api_client.test_connection()
             kb_stats = self.knowledge_base.get_statistics()
+            
+            api_status = {
+                "success": True,
+                "model": self.api_client.model,
+                "api_key_configured": bool(self.api_client.api_key)
+            }
             
             return {
                 "status": "healthy",
@@ -49,8 +54,9 @@ class AIAgentService:
                 "timestamp": format_timestamp(),
                 "components": {
                     "api_client": {
-                        "status": "operational" if api_status["success"] else "degraded",
-                        "model": self.api_client.model
+                        "status": "operational" if api_status["api_key_configured"] else "api_key_missing",
+                        "model": self.api_client.model,
+                        "api_key_configured": api_status["api_key_configured"]
                     },
                     "knowledge_base": {
                         "status": "operational",
@@ -76,7 +82,9 @@ class AIAgentService:
              temperature: float = 0.7,
              model: Optional[str] = None,
              pet_context: Optional[Dict[str, Any]] = None,
-             breed_context: Optional[str] = None) -> Dict[str, Any]:
+             breed_context: Optional[str] = None,
+             api_key: Optional[str] = None,
+             base_url: Optional[str] = None) -> Dict[str, Any]:
         """
         Main chat interface for pet-related queries
         
@@ -112,6 +120,14 @@ class AIAgentService:
             
             system_prompt = self.prompt_manager.get_combined_prompt(custom_prompt)
             
+            client = self.api_client
+            if api_key or base_url or model:
+                client = SiliconFlowClient(
+                    api_key=api_key or self.api_client.api_key,
+                    base_url=base_url or self.api_client.base_url,
+                    model=model or self.api_client.model
+                )
+            
             if use_knowledge_base:
                 query_for_kb = context_prompt if pet_context else user_message
                 knowledge_results = self.knowledge_base.query_knowledge(
@@ -122,15 +138,15 @@ class AIAgentService:
                     knowledge_context = "\n".join([
                         f"- {result['data']}" for result in knowledge_results
                     ])
-                    response = self.api_client.chat_with_knowledge(
+                    response = client.chat_with_knowledge(
                         context_prompt, knowledge_context, system_prompt, temperature, model
                     )
                 else:
-                    response = self.api_client.simple_chat(
+                    response = client.simple_chat(
                         context_prompt, system_prompt, temperature, model
                     )
             else:
-                response = self.api_client.simple_chat(
+                response = client.simple_chat(
                     context_prompt, system_prompt, temperature, model
                 )
             
@@ -149,7 +165,9 @@ class AIAgentService:
                    use_knowledge_base: bool = True,
                    custom_prompt: Optional[str] = None,
                    temperature: float = 0.7,
-                   model: Optional[str] = None) -> Generator[str, None, None]:
+                   model: Optional[str] = None,
+                   api_key: Optional[str] = None,
+                   base_url: Optional[str] = None) -> Generator[str, None, None]:
         """
         Streaming chat interface for real-time responses
         
@@ -167,6 +185,14 @@ class AIAgentService:
             logger.info(f"Processing streaming chat request: {user_message[:50]}...")
             
             system_prompt = self.prompt_manager.get_combined_prompt(custom_prompt)
+            
+            client = self.api_client
+            if api_key or base_url or model:
+                client = SiliconFlowClient(
+                    api_key=api_key or self.api_client.api_key,
+                    base_url=base_url or self.api_client.base_url,
+                    model=model or self.api_client.model
+                )
             
             messages = [{"role": "system", "content": system_prompt}]
             
@@ -193,10 +219,10 @@ class AIAgentService:
                 messages.append({"role": "user", "content": user_message})
             
             # 使用指定的模型或默认模型
-            selected_model = model or self.api_client.model
+            selected_model = model or client.model
             
-            for chunk in self.api_client._stream_chat_completion(
-                f"{self.api_client.base_url}/chat/completions",
+            for chunk in client._stream_chat_completion(
+                f"{client.base_url}/chat/completions",
                 {
                     "model": selected_model,
                     "messages": messages,

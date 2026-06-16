@@ -11,16 +11,54 @@ class AIAgentClient:
     
     def __init__(self, base_url: str = "http://localhost:8000"):
         self.base_url = base_url
+        self.default_model_config = None
     
     def _request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """Make HTTP request to AI Agent service"""
         try:
             url = f"{self.base_url}{endpoint}"
+            kwargs.setdefault('timeout', 30)
             response = requests.request(method, url, **kwargs)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
             return {"success": False, "error": str(e)}
+    
+    def set_default_model_config(self, config: Dict[str, Any]):
+        """Set the default model configuration from database"""
+        self.default_model_config = config
+    
+    def _get_chat_data(self, user_message: str, use_knowledge_base: bool, custom_prompt: Optional[str],
+                       temperature: float, model: Optional[str], pet_context: Optional[Dict[str, Any]],
+                       breed_context: Optional[str]) -> Dict[str, Any]:
+        """Build chat request data with model configuration"""
+        data = {
+            "user_message": user_message,
+            "use_knowledge_base": use_knowledge_base,
+            "temperature": temperature
+        }
+        
+        if self.default_model_config:
+            if "api_key" in self.default_model_config and self.default_model_config["api_key"]:
+                data["api_key"] = self.default_model_config["api_key"]
+            if "base_url" in self.default_model_config and self.default_model_config["base_url"]:
+                base_url = self.default_model_config["base_url"]
+                if not base_url.endswith('/v1'):
+                    base_url = base_url.rstrip('/') + '/v1'
+                data["base_url"] = base_url
+        
+        if custom_prompt:
+            data["custom_prompt"] = custom_prompt
+        if model:
+            data["model"] = model
+        elif self.default_model_config and "model_name" in self.default_model_config:
+            data["model"] = self.default_model_config["model_name"]
+        if pet_context:
+            data["pet_context"] = pet_context
+        if breed_context:
+            data["breed_context"] = breed_context
+        
+        return data
     
     def stream_chat(self, user_message: str,
                     use_knowledge_base: bool = True,
@@ -31,19 +69,8 @@ class AIAgentClient:
                     breed_context: Optional[str] = None) -> Generator[str, None, None]:
         """Stream chat with AI agent (returns generator)"""
         url = f"{self.base_url}/v1/stream"
-        data = {
-            "user_message": user_message,
-            "use_knowledge_base": use_knowledge_base,
-            "temperature": temperature
-        }
-        if custom_prompt:
-            data["custom_prompt"] = custom_prompt
-        if model:
-            data["model"] = model
-        if pet_context:
-            data["pet_context"] = pet_context
-        if breed_context:
-            data["breed_context"] = breed_context
+        data = self._get_chat_data(user_message, use_knowledge_base, custom_prompt,
+                                   temperature, model, pet_context, breed_context)
         
         try:
             response = requests.post(url, json=data, stream=True)
@@ -67,19 +94,8 @@ class AIAgentClient:
              pet_context: Optional[Dict[str, Any]] = None,
              breed_context: Optional[str] = None) -> Dict[str, Any]:
         """Chat with AI agent"""
-        data = {
-            "user_message": user_message,
-            "use_knowledge_base": use_knowledge_base,
-            "temperature": temperature
-        }
-        if custom_prompt:
-            data["custom_prompt"] = custom_prompt
-        if model:
-            data["model"] = model
-        if pet_context:
-            data["pet_context"] = pet_context
-        if breed_context:
-            data["breed_context"] = breed_context
+        data = self._get_chat_data(user_message, use_knowledge_base, custom_prompt,
+                                   temperature, model, pet_context, breed_context)
         
         return self._request("POST", "/v1/chat", json=data)
     

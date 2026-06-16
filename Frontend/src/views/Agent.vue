@@ -292,15 +292,26 @@ const loadHistory = async () => {
 }
 
 const checkAgentHealth = async () => {
-  try {
-    const response = await agentAPI.healthCheck()
-    console.log('Health check response:', response)
-    console.log('Response status:', response.status)
-    agentOnline.value = response.status === 'healthy'
-    console.log('Agent online status:', agentOnline.value)
-  } catch (error) {
-    console.error('Health check error:', error)
-    agentOnline.value = false
+  const maxRetries = 3
+  const retryDelay = 2000
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await agentAPI.healthCheck()
+      console.log('Health check response:', response)
+      console.log('Response status:', response.status)
+      agentOnline.value = response.status === 'healthy'
+      console.log('Agent online status:', agentOnline.value)
+      return
+    } catch (error) {
+      console.error(`Health check error (attempt ${attempt}/${maxRetries}):`, error)
+      if (attempt < maxRetries) {
+        console.log(`Retrying in ${retryDelay}ms...`)
+        await new Promise(resolve => setTimeout(resolve, retryDelay))
+      } else {
+        agentOnline.value = false
+      }
+    }
   }
 }
 
