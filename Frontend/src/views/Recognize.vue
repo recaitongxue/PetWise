@@ -4,8 +4,87 @@
     <div class="container">
       <h1 class="page-title">🐾 宠物品种识别</h1>
       
-      <div class="recognize-content">
-        <div class="upload-section">
+      <div class="recognize-content" :class="{ 'has-result': result }">
+        <!-- 左侧面板：上传区域 + 识别结果 -->
+        <div v-if="result" class="left-panel">
+          <!-- 上传区域 -->
+          <div class="upload-section">
+            <div 
+              class="upload-area" 
+              :class="{ dragging: isDragging, hasImage: selectedFile }"
+              @dragenter.prevent="isDragging = true"
+              @dragleave.prevent="isDragging = false"
+              @dragover.prevent
+              @drop.prevent="handleDrop"
+              @click="triggerFileInput"
+            >
+              <input 
+                ref="fileInput" 
+                type="file" 
+                accept="image/*" 
+                class="file-input"
+                @change="handleFileSelect"
+              />
+              
+              <div v-if="imagePreview" class="image-preview">
+                <img :src="imagePreview" alt="预览图片" class="preview-image" />
+                <div class="preview-overlay">
+                  <span class="change-text">点击更换图片</span>
+                </div>
+              </div>
+              
+              <div v-else class="upload-hint">
+                <div class="upload-icon">📷</div>
+                <p>{{ selectedFile ? selectedFile.name : '点击或拖拽上传图片' }}</p>
+                <p class="hint">支持 JPG、PNG 格式</p>
+              </div>
+            </div>
+            
+            <div class="upload-actions">
+              <el-button 
+                type="primary" 
+                @click="handleRecognize" 
+                :loading="recognizing"
+                class="recognize-btn"
+              >
+                {{ recognizing ? '识别中...' : '开始识别' }}
+              </el-button>
+              <el-button @click="openBatchDialog">
+                📸 批量识别
+              </el-button>
+            </div>
+          </div>
+
+          <!-- 识别结果 -->
+          <div class="result-card-section">
+            <h3>识别结果</h3>
+            <div class="result-card">
+              <div class="result-header">
+                <div class="breed-icon">🐾</div>
+                <div class="breed-name">{{ result.breed }}</div>
+                <div class="confidence">置信度: {{ (result.confidence * 100).toFixed(2) }}%</div>
+              </div>
+
+              <div v-if="result.top5" class="top5-section">
+                <h4>TOP 5 候选</h4>
+                <div class="top5-list">
+                  <div 
+                    v-for="(item, index) in result.top5" 
+                    :key="index"
+                    class="top5-item"
+                  >
+                    <span class="rank">{{ index + 1 }}</span>
+                    <span class="class-name">{{ item.class }}</span>
+                    <span class="conf-value">{{ (item.confidence * 100).toFixed(2) }}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 没有识别结果时显示上传区域 -->
+        <div v-if="!result" class="upload-section">
           <div 
             class="upload-area" 
             :class="{ dragging: isDragging, hasImage: selectedFile }"
@@ -52,142 +131,128 @@
           </div>
         </div>
 
+        <!-- 右侧区域：品种详情 + 用户纠错 -->
         <div v-if="result" class="result-section">
-          <h3>识别结果</h3>
-          
-          <div class="result-card">
-            <!-- 原始图片展示 -->
-            <div class="original-image-section">
-              <h4>原始图片</h4>
-              <img :src="imagePreview" alt="原始图片" class="original-image" />
-            </div>
-
-            <div class="result-header">
-              <div class="breed-icon">🐾</div>
-              <div class="breed-name">{{ result.breed }}</div>
-              <div class="confidence">置信度: {{ (result.confidence * 100).toFixed(2) }}%</div>
-            </div>
-
-            <div v-if="result.top5" class="top5-section">
-              <h4>TOP 5 候选</h4>
-              <div class="top5-list">
-                <div 
-                  v-for="(item, index) in result.top5" 
-                  :key="index"
-                  class="top5-item"
-                >
-                  <span class="rank">{{ index + 1 }}</span>
-                  <span class="class-name">{{ item.class }}</span>
-                  <span class="conf-value">{{ (item.confidence * 100).toFixed(2) }}%</span>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="breedInfo" class="breed-info-card">
+          <!-- 品种详情 -->
+          <div v-if="breedInfo" class="breed-info-section">
+            <div class="breed-header">
               <h3>品种详情</h3>
-              <div class="info-grid">
+              <div class="breed-title">{{ breedInfo.category === 'cat' ? '🐱' : '🐶' }} {{ breedInfo.breed }}</div>
+            </div>
+            <div class="breed-info-grid">
+              <div class="info-column">
                 <div class="info-item">
-                  <span class="label">类别</span>
-                  <span class="value">{{ breedInfo.category === 'cat' ? '🐱 猫' : '🐶 狗' }}</span>
+                  <span class="label">🐾 动物类别</span>
+                  <span class="value">{{ breedInfo.category === 'cat' ? '猫科动物 (Felidae)' : '犬科动物 (Canidae)' }}</span>
                 </div>
                 <div class="info-item">
-                  <span class="label">起源</span>
+                  <span class="label">🌍 起源国家</span>
                   <span class="value">{{ breedInfo.origin }}</span>
                 </div>
                 <div class="info-item">
-                  <span class="label">性格</span>
+                  <span class="label">🎭 性格特点</span>
                   <span class="value">{{ breedInfo.personality }}</span>
                 </div>
                 <div class="info-item">
-                  <span class="label">寿命</span>
+                  <span class="label">⏱️ 预期寿命</span>
                   <span class="value">{{ breedInfo.lifespan }}</span>
                 </div>
                 <div class="info-item">
-                  <span class="label">饲养建议</span>
+                  <span class="label">🏠 适宜环境</span>
+                  <span class="value">{{ breedInfo.category === 'cat' ? '室内饲养，需要活动空间' : '室内外均可，需要充足运动' }}</span>
+                </div>
+              </div>
+              <div class="info-column">
+                <div class="info-item">
+                  <span class="label">🍽️ 饮食建议</span>
                   <span class="value">{{ breedInfo.feeding }}</span>
                 </div>
                 <div class="info-item">
-                  <span class="label">护理要点</span>
+                  <span class="label">🛁 护理要点</span>
                   <span class="value">{{ breedInfo.care }}</span>
                 </div>
                 <div class="info-item">
-                  <span class="label">常见问题</span>
+                  <span class="label">⚕️ 常见健康问题</span>
                   <span class="value">{{ breedInfo.common_issues }}</span>
                 </div>
                 <div class="info-item">
-                  <span class="label">适合人群</span>
+                  <span class="label">👨‍👩‍👧 适合人群</span>
                   <span class="value">{{ breedInfo.suitable_for }}</span>
                 </div>
-              </div>
-
-              <div class="info-actions">
-                <el-button @click="addFavorite">❤️ 收藏</el-button>
-                <el-button @click="goToBreedDetail">查看详情</el-button>
+                <div class="info-item">
+                  <span class="label">🎯 品种用途</span>
+                  <span class="value">{{ breedInfo.category === 'cat' ? '伴侣宠物，捕鼠能手' : '伴侣犬、工作犬、护卫犬' }}</span>
+                </div>
               </div>
             </div>
+            <div class="info-actions">
+              <el-button @click="addFavorite">❤️ 收藏</el-button>
+              <el-button @click="goToBreedDetail">📖 查看详情</el-button>
+            </div>
+          </div>
 
-            <!-- 用户纠错 -->
-            <div class="correction-section">
-              <h4>识别结果不准确？</h4>
-              <el-select v-model="correctedBreed" placeholder="请选择正确品种" filterable>
-                <el-option 
-                  v-for="breed in allBreeds" 
-                  :key="breed" 
-                  :label="breed" 
-                  :value="breed"
-                />
-                <el-option label="🔄 其他（手动输入）" value="__custom__" />
-              </el-select>
-              
-              <div v-if="correctedBreed === '__custom__'" class="custom-breed-input">
-                <el-input 
-                  v-model="customBreed"
-                  placeholder="请输入实际品种名称"
-                />
-              </div>
-              
-              <el-input 
-                v-model="correctionReason"
-                type="textarea"
-                :rows="2"
-                placeholder="请说明原因"
+          <!-- 用户纠错 -->
+          <div class="correction-section">
+            <h4>识别结果不准确？</h4>
+            <el-select v-model="correctedBreed" placeholder="请选择正确品种" filterable>
+              <el-option 
+                v-for="breed in allBreeds" 
+                :key="breed" 
+                :label="breed" 
+                :value="breed"
               />
-              <el-button @click="submitCorrection" type="primary">提交纠错</el-button>
+              <el-option label="🔄 其他（手动输入）" value="__custom__" />
+            </el-select>
+            
+            <div v-if="correctedBreed === '__custom__'" class="custom-breed-input">
+              <el-input 
+                v-model="customBreed"
+                placeholder="请输入实际品种名称"
+              />
             </div>
+            
+            <el-input 
+              v-model="correctionReason"
+              type="textarea"
+              :rows="2"
+              placeholder="请说明原因"
+            />
+            <el-button @click="submitCorrection" type="primary">提交纠错</el-button>
           </div>
         </div>
+      </div>
 
-        <div class="history-section">
-          <div class="section-header">
-            <h3>识别历史</h3>
-            <el-button @click="showHistory = !showHistory">
-              {{ showHistory ? '隐藏' : '查看' }}
-            </el-button>
-          </div>
-          
-          <div v-if="showHistory" class="history-list">
-            <div v-if="history.length > 0">
-              <div 
-                v-for="item in history" 
-                :key="item.id" 
-                class="history-item"
-              >
-                <div class="history-info">
-                  <img :src="getImageUrl(item.image_path)" alt="识别图片" class="history-image" />
-                  <div class="history-detail">
-                    <span class="history-breed">{{ item.breed }}</span>
-                    <span v-if="isBatchRecord(item.image_path)" class="batch-badge">📸 批量</span>
-                    <span class="history-time">{{ item.created_at }}</span>
-                  </div>
-                </div>
-                <div class="history-actions">
-                  <el-button size="small" @click="deleteHistoryItem(item.id)">删除</el-button>
+      <!-- 识别历史 -->
+      <div class="history-section">
+        <div class="section-header">
+          <h3>识别历史</h3>
+          <el-button @click="showHistory = !showHistory">
+            {{ showHistory ? '隐藏' : '查看' }}
+          </el-button>
+        </div>
+        
+        <div v-if="showHistory" class="history-list">
+          <div v-if="history.length > 0">
+            <div 
+              v-for="item in history" 
+              :key="item.id" 
+              class="history-item"
+            >
+              <div class="history-info">
+                <img :src="getImageUrl(item.image_path)" alt="识别图片" class="history-image" />
+                <div class="history-detail">
+                  <span class="history-breed">{{ item.breed }}</span>
+                  <span v-if="isBatchRecord(item.image_path)" class="batch-badge">📸 批量</span>
+                  <span class="history-time">{{ item.created_at }}</span>
                 </div>
               </div>
+              <div class="history-actions">
+                <el-button size="small" @click="deleteHistoryItem(item.id)">删除</el-button>
+              </div>
             </div>
-            <div v-else class="empty-history">
-              <p>暂无识别记录</p>
-            </div>
+          </div>
+          <div v-else class="empty-history">
+            <p>暂无识别记录</p>
           </div>
         </div>
       </div>
@@ -263,10 +328,13 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
 import Navbar from '@/components/Navbar.vue'
 import { recognizeAPI } from '@/api/recognize'
 import { favoritesAPI } from '@/api/favorites'
 import { breedAPI } from '@/api/breed'
+
+const router = useRouter()
 
 const fileInput = ref(null)
 const isDragging = ref(false)
@@ -275,7 +343,7 @@ const imagePreview = ref(null)
 const recognizing = ref(false)
 const result = ref(null)
 const breedInfo = ref(null)
-const showHistory = ref(false)
+const showHistory = ref(true)
 const history = ref([])
 const correctedBreed = ref('')
 const correctionReason = ref('')
@@ -563,7 +631,7 @@ const addFavorite = async () => {
 
 const goToBreedDetail = () => {
   if (breedInfo.value) {
-    window.location.href = `/breed/${encodeURIComponent(breedInfo.value.breed)}`
+    router.push(`/breed/${encodeURIComponent(breedInfo.value.breed)}`)
   }
 }
 
@@ -579,52 +647,128 @@ onMounted(() => {
 <style scoped>
 .recognize-page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
 .container {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 30px 20px;
+  padding: 20px;
 }
 
 .page-title {
   text-align: center;
-  font-size: 28px;
-  margin-bottom: 30px;
+  font-size: 26px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 25px;
+  letter-spacing: 2px;
 }
 
 .recognize-content {
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.recognize-content.has-result {
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 20px;
+}
+
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 320px;
 }
 
 .upload-section {
   background: white;
-  border-radius: 16px;
-  padding: 30px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+.breed-info-section {
+  background: white;
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+  margin-bottom: 15px;
+}
+
+.breed-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.breed-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.breed-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #4a90d9;
+}
+
+.result-card-section {
+  background: white;
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+}
+
+.result-section {
+  flex: 1;
+  min-width: 600px;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
 }
 
 .upload-area {
   border: 2px dashed #ddd;
   border-radius: 12px;
-  padding: 40px;
+  padding: 40px 20px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
   position: relative;
+  background: #fafbfc;
+}
+
+.upload-area:hover {
+  border-color: #667eea;
+  background: #f8f9ff;
 }
 
 .upload-area.dragging {
   border-color: #667eea;
   background: #f0f4ff;
+  transform: scale(1.02);
 }
 
 .upload-area.hasImage {
+  padding: 12px;
   border-style: solid;
   border-color: #667eea;
+  background: white;
 }
 
 .file-input {
@@ -633,12 +777,13 @@ onMounted(() => {
 
 .upload-icon {
   font-size: 48px;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
+  opacity: 0.7;
 }
 
 .upload-hint p {
-  color: #333;
-  font-size: 16px;
+  color: #555;
+  font-size: 15px;
   margin-bottom: 5px;
 }
 
@@ -649,27 +794,31 @@ onMounted(() => {
 
 .upload-actions {
   margin-top: 20px;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
 }
 
 .recognize-btn {
-  padding: 12px 40px;
-  font-size: 16px;
+  padding: 10px 32px;
+  font-size: 15px;
+  border-radius: 25px;
+  font-weight: 500;
 }
 
 .image-preview {
   position: relative;
   width: 100%;
-  max-height: 400px;
+  max-height: 320px;
   overflow: hidden;
+  border-radius: 10px;
 }
 
 .preview-image {
   width: 100%;
   height: auto;
-  max-height: 400px;
+  max-height: 320px;
   object-fit: contain;
-  border-radius: 8px;
 }
 
 .preview-overlay {
@@ -678,12 +827,13 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 0.3s ease;
+  border-radius: 10px;
 }
 
 .upload-area:hover .preview-overlay {
@@ -692,19 +842,17 @@ onMounted(() => {
 
 .change-text {
   color: white;
-  font-size: 16px;
-}
-
-.result-section {
-  background: white;
-  border-radius: 16px;
-  padding: 30px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .result-section h3 {
   margin-bottom: 20px;
   font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #f0f0f0;
 }
 
 .result-card {
@@ -713,29 +861,14 @@ onMounted(() => {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   margin-bottom: 20px;
-}
-
-.original-image-section {
-  margin-bottom: 20px;
-}
-
-.original-image-section h4 {
-  margin-bottom: 10px;
-}
-
-.original-image {
-  width: 100%;
-  max-height: 300px;
-  object-fit: contain;
-  border-radius: 8px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
 
 .result-header {
   display: flex;
   align-items: center;
-  gap: 15px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 18px;
 }
 
 .breed-icon {
@@ -744,23 +877,30 @@ onMounted(() => {
 
 .breed-name {
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .confidence {
   margin-left: auto;
   opacity: 0.9;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 12px;
+  border-radius: 20px;
 }
 
 .top5-section {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
   padding: 15px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .top5-section h4 {
   margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.9;
 }
 
 .top5-list {
@@ -773,15 +913,27 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.15);
   padding: 8px 12px;
   border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.top5-item:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .rank {
   width: 24px;
-  text-align: center;
-  font-weight: 600;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 12px;
 }
 
 .class-name {
@@ -789,77 +941,103 @@ onMounted(() => {
 }
 
 .conf-value {
+  font-weight: 600;
   opacity: 0.9;
 }
 
-.breed-info-card {
+.conf-value {
+  opacity: 0.9;
+  font-size: 12px;
+}
+
+.breed-info-section {
   background: #f9fafb;
   border-radius: 12px;
   padding: 20px;
-  margin-bottom: 20px;
+  margin-top: 15px;
 }
 
-.breed-info-card h3 {
+.breed-info-section h3 {
   margin-bottom: 15px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
 }
 
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
-  margin-bottom: 20px;
+.breed-info-grid {
+  display: flex;
+  gap: 20px;
+}
+
+.info-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .info-item {
   background: white;
   padding: 12px;
   border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .info-item .label {
   display: block;
   font-size: 12px;
   color: #999;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 
 .info-item .value {
   color: #333;
+  font-size: 14px;
 }
 
 .info-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .correction-section {
   background: #fff9f9;
-  border-radius: 12px;
-  padding: 15px;
+  border-radius: 8px;
+  padding: 12px;
   border: 1px solid #f5d8d8;
 }
 
 .correction-section h4 {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: #c0392b;
+  font-size: 14px;
 }
 
 .correction-section > *:not(:last-child) {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+}
+
+.correction-section :deep(.el-textarea__inner) {
+  border-width: 0px;
+  border-style: solid;
+  border-color: #000000;
+  height: 100px;
 }
 
 .history-section {
   background: white;
-  border-radius: 16px;
-  padding: 30px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+  width: 100%;
+  margin-top: 15px;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .history-list {

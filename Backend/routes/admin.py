@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, session
 from models.db import get_db
 from utils import log_action, admin_required, get_current_user_id
+from routes.agent import ai_client
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -610,7 +611,8 @@ def add_model():
 
         db = get_db()
 
-        if data.get('is_default', 0) == 1:
+        is_default = data.get('is_default', 0)
+        if is_default == 1:
             db.execute('UPDATE llm_models SET is_default = 0 WHERE is_default = 1')
 
         db.execute('''
@@ -626,10 +628,18 @@ def add_model():
             data.get('temperature', 0.7),
             data.get('top_p', 0.9),
             data.get('is_active', 1),
-            data.get('is_default', 0),
+            is_default,
             data.get('description')
         ))
         db.commit()
+
+        if is_default == 1:
+            model_config = {
+                'api_key': data.get('api_key'),
+                'base_url': data.get('base_url'),
+                'model_name': data['model_name']
+            }
+            ai_client.set_default_model_config(model_config)
 
         log_action(db, admin_id, 'admin_add_model', {'name': data['name'], 'provider': data['provider']})
 
@@ -649,7 +659,8 @@ def update_model(model_id):
         if not model:
             return jsonify({"error": "Model not found"}), 404
 
-        if data.get('is_default', 0) == 1:
+        is_default = data.get('is_default', 0)
+        if is_default == 1:
             db.execute('UPDATE llm_models SET is_default = 0 WHERE is_default = 1')
 
         updates = []
@@ -666,6 +677,15 @@ def update_model(model_id):
             params.append(model_id)
             db.execute(f'UPDATE llm_models SET {", ".join(updates)} WHERE id = ?', params)
             db.commit()
+
+            updated_model = db.execute('SELECT * FROM llm_models WHERE id = ?', (model_id,)).fetchone()
+            if is_default == 1 and updated_model:
+                model_config = {
+                    'api_key': updated_model['api_key'],
+                    'base_url': updated_model['base_url'],
+                    'model_name': updated_model['model_name']
+                }
+                ai_client.set_default_model_config(model_config)
 
         log_action(db, admin_id, 'admin_update_model', {'model_id': model_id})
 
@@ -708,9 +728,16 @@ def set_default_model(model_id):
         db.execute('UPDATE llm_models SET is_default = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?', (model_id,))
         db.commit()
 
+        model_config = {
+            'api_key': model['api_key'],
+            'base_url': model['base_url'],
+            'model_name': model['model_name']
+        }
+        ai_client.set_default_model_config(model_config)
+
         log_action(db, admin_id, 'admin_set_default_model', {'model_id': model_id})
 
-        return jsonify({"success": True, "message": "Default model updated"})
+        return jsonify({"success": True, "message": "Default model updated", "model": model_config})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

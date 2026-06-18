@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useStore } from '../store'
+import axios from '../api/axios'
 
 const routes = [
   {
@@ -119,7 +120,7 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const token = localStorage.getItem('token')
   let user = null
   try {
@@ -127,7 +128,18 @@ router.beforeEach((to, from, next) => {
   } catch (e) {
     console.error('Failed to parse user from localStorage:', e)
   }
-  const isLoggedIn = !!token && user !== null
+  let isLoggedIn = !!token && user !== null
+  
+  if (isLoggedIn && to.meta.requiresAuth) {
+    try {
+      await axios.get('/auth/profile')
+    } catch (error) {
+      console.log('Token validation failed, clearing localStorage')
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      isLoggedIn = false
+    }
+  }
   
   if (to.meta.requiresAuth && !isLoggedIn) {
     next('/login')

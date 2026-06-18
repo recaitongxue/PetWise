@@ -188,9 +188,9 @@ const clearResults = () => {
 }
 
 .container {
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 30px 20px;
+  padding: 20px;
 }
 
 .page-title {

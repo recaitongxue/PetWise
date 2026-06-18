@@ -56,6 +56,8 @@ class ChatRequest(BaseModel):
     model: Optional[str] = Field(None, description="AI model name to use (e.g., deepseek-ai/DeepSeek-V3)")
     pet_context: Optional[Dict[str, Any]] = Field(None, description="Pet context information for personalized responses")
     breed_context: Optional[str] = Field(None, description="Breed context for the conversation")
+    api_key: Optional[str] = Field(None, description="API key for the AI service")
+    base_url: Optional[str] = Field(None, description="Base URL for the AI service")
 
 class ChatResponse(BaseModel):
     success: bool
@@ -252,7 +254,9 @@ async def chat(request: ChatRequest, http_request: Request):
             temperature=request.temperature,
             model=request.model if request.model and request.model != "string" else None,
             pet_context=request.pet_context,
-            breed_context=request.breed_context
+            breed_context=request.breed_context,
+            api_key=request.api_key,
+            base_url=request.base_url
         )
         
         if not response.get("success"):
@@ -278,27 +282,36 @@ async def stream_chat(request: ChatRequest):
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
-    try:
-        async def generate():
-            try:
-                for chunk in ai_service.stream_chat(
-                    user_message=request.user_message,
-                    use_knowledge_base=request.use_knowledge_base,
-                    custom_prompt=request.custom_prompt if request.custom_prompt and request.custom_prompt != "string" else None,
-                    temperature=request.temperature,
-                    model=request.model if request.model and request.model != "string" else None
-                ):
-                    yield f"data: {chunk}\n\n"
-                yield "data: [DONE]\n\n"
-            except Exception as e:
-                logger.error(f"Streaming error: {e}")
-                yield f"data: Error: {str(e)}\n\n"
-        
-        return StreamingResponse(generate(), media_type="text/event-stream")
-        
-    except Exception as e:
-        logger.error(f"Stream endpoint error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    async def generate():
+        try:
+            for chunk in ai_service.stream_chat(
+                user_message=request.user_message,
+                use_knowledge_base=request.use_knowledge_base,
+                custom_prompt=request.custom_prompt if request.custom_prompt and request.custom_prompt != "string" else None,
+                temperature=request.temperature,
+                model=request.model if request.model and request.model != "string" else None,
+                api_key=request.api_key,
+                base_url=request.base_url
+            ):
+                yield f"data: {chunk}\n\n"
+                import asyncio
+                await asyncio.sleep(0)
+            yield "data: [DONE]\n\n"
+        except Exception as e:
+            logger.error(f"Streaming error: {e}")
+            yield f"data: Error: {str(e)}\n\n"
+    
+    from fastapi.responses import StreamingResponse
+    response = StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+    return response
 
 @v1_router.post("/analyze-image", tags=["Image Analysis"])
 async def analyze_image(request: ImageAnalysisRequest):

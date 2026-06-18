@@ -9,10 +9,10 @@
       
       <el-form ref="loginForm" :model="form" label-width="80px" @submit.prevent="handleLogin">
         <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" placeholder="请输入用户名" />
+          <el-input v-model="form.username" placeholder="请输入用户名" autocomplete="off" />
         </el-form-item>
         <el-form-item label="密码" prop="password">
-          <el-input v-model="form.password" type="password" placeholder="请输入密码" />
+          <el-input v-model="form.password" type="password" placeholder="请输入密码" autocomplete="new-password" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleLogin" :loading="loading" class="login-btn">
@@ -29,7 +29,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { authAPI } from '@/api/auth'
 
@@ -39,6 +39,11 @@ const loading = ref(false)
 const form = reactive({
   username: '',
   password: ''
+})
+
+onMounted(() => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('user')
 })
 
 const handleLogin = async () => {

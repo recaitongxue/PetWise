@@ -4,7 +4,7 @@ AI智能体路由
 """
 import json
 import time
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify, Response, stream_with_context
 from models.db import get_db
 from utils import log_action, login_required, get_current_user_id
 from services.ai_agent_client import AIAgentClient
@@ -58,7 +58,7 @@ def agent_chat():
         if response.get("success") and response.get("content"):
             ai_response = response["content"]
         else:
-            ai_response = f"抱歉，AI服务暂时不可用，请稍后重试。"
+            ai_response = f"抱歉，AI服务暂时不可用，请稍后重试。错误: {response.get('error', '未知')}"
 
         db.execute('''
             INSERT INTO chat_history (user_id, session_id, role, message, breed_context, model_used)
@@ -86,69 +86,75 @@ def agent_chat():
 @login_required
 def agent_chat_stream():
     """SSE流式响应接口"""
-    try:
-        data = request.get_json()
-        message = data.get('message')
-        session_id = data.get('session_id', 'default')
-        breed_context = data.get('breed_context', '')
-        pet_id = data.get('pet_id')
+    data = request.get_json()
+    message = data.get('message')
+    session_id = data.get('session_id', 'default')
+    breed_context = data.get('breed_context', '')
+    pet_id = data.get('pet_id')
 
-        if not message:
-            return jsonify({"error": "Message is required"}), 400
+    if not message:
+        return jsonify({"error": "Message is required"}), 400
 
-        user_id = get_current_user_id()
-        db = get_db()
+    user_id = get_current_user_id()
+    db = get_db()
 
-        # 获取宠物档案上下文
-        pet_context = None
-        if pet_id:
-            pet = db.execute('SELECT * FROM pets WHERE id = ? AND user_id = ?', (pet_id, user_id)).fetchone()
-            if pet:
-                pet_context = dict(pet)
+    # 获取宠物档案上下文
+    pet_context = None
+    if pet_id:
+        pet = db.execute('SELECT * FROM pets WHERE id = ? AND user_id = ?', (pet_id, user_id)).fetchone()
+        if pet:
+            pet_context = dict(pet)
 
-        # 保存用户消息
-        db.execute('''
-            INSERT INTO chat_history (user_id, session_id, role, message, breed_context)
-            VALUES (?, ?, 'user', ?, ?)
-        ''', (user_id, session_id, message, breed_context))
-        db.commit()
+    # 保存用户消息
+    db.execute('''
+        INSERT INTO chat_history (user_id, session_id, role, message, breed_context)
+        VALUES (?, ?, 'user', ?, ?)
+    ''', (user_id, session_id, message, breed_context))
+    db.commit()
 
-        def generate():
-            try:
-                response = ai_client.chat(
-                    user_message=message,
-                    use_knowledge_base=True,
-                    temperature=0.7,
-                    pet_context=pet_context,
-                    breed_context=breed_context
-                )
+    def generate():
+        full_content = ""
+        try:
+            for chunk in ai_client.stream_chat(
+                user_message=message,
+                use_knowledge_base=True,
+                temperature=0.7,
+                pet_context=pet_context,
+                breed_context=breed_context
+            ):
+                if chunk.startswith("[DONE]"):
+                    break
+                if chunk.startswith("Error:"):
+                    response_data = json.dumps({'error': chunk[6:]})
+                    yield f"data: {response_data}\n\n".encode('utf-8')
+                    return
+                
+                full_content += chunk
+                response_data = json.dumps({'content': chunk})
+                yield f"data: {response_data}\n\n".encode('utf-8')
 
-                if response.get("success") and response.get("content"):
-                    content = response["content"]
-                    # 模拟流式输出
-                    for i, char in enumerate(content):
-                        yield f"data: {json.dumps({'content': char, 'index': i})}\n\n"
-                        time.sleep(0.01)
+            if full_content:
+                db.execute('''
+                    INSERT INTO chat_history (user_id, session_id, role, message, breed_context, model_used)
+                    VALUES (?, ?, 'assistant', ?, ?, ?)
+                ''', (user_id, session_id, full_content, breed_context, 'ai_agent_service'))
+                db.commit()
 
-                    # 保存完整响应
-                    db.execute('''
-                        INSERT INTO chat_history (user_id, session_id, role, message, breed_context, model_used)
-                        VALUES (?, ?, 'assistant', ?, ?, ?)
-                    ''', (user_id, session_id, content, breed_context, 'ai_agent_service'))
-                    db.commit()
+                log_action(db, user_id, 'agent_chat_stream', {'message': message[:50], 'breed_context': breed_context})
 
-                    log_action(db, user_id, 'agent_chat_stream', {'message': message[:50], 'breed_context': breed_context})
+            yield f"data: {json.dumps({'done': True})}\n\n".encode('utf-8')
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n".encode('utf-8')
 
-                    yield f"data: {json.dumps({'done': True})}\n\n"
-                else:
-                    error_msg = "抱歉，AI服务暂时不可用，请稍后重试。"
-                    yield f"data: {json.dumps({'error': error_msg})}\n\n"
-            except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
-
-        return Response(generate(), mimetype='text/event-stream')
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    response = Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream; charset=utf-8'
+    )
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Connection'] = 'keep-alive'
+    response.headers['X-Accel-Buffering'] = 'no'
+    response.headers['Content-Type'] = 'text/event-stream; charset=utf-8'
+    return response
 
 @agent_bp.route('/agent/structured-consultation', methods=['POST'])
 @login_required
@@ -316,12 +322,14 @@ def emergency_consultation():
         return jsonify({"error": str(e), "warning": "紧急情况下请直接联系宠物医院！"}), 500
 
 @agent_bp.route('/agent/health', methods=['GET'])
-@login_required
 def agent_health():
+    print("DEBUG: agent_health endpoint called")
     try:
         response = ai_client.health_check()
+        print(f"DEBUG: ai_client.health_check returned: {response}")
         return jsonify(response)
     except Exception as e:
+        print(f"DEBUG: agent_health error: {e}")
         return jsonify({
             "status": "unhealthy",
             "error": str(e)

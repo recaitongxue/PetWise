@@ -252,6 +252,7 @@ def init_db():
             activity_level TEXT,
             mood TEXT,
             notes TEXT,
+            consultation_data TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (pet_id) REFERENCES pets(id)
         );
@@ -381,6 +382,13 @@ def init_db():
             FOREIGN KEY (created_by) REFERENCES users(id)
         );
     ''')
+
+    # 添加缺失的字段（用于问诊记录）
+    try:
+        cursor.execute('ALTER TABLE health_records ADD COLUMN consultation_data TEXT')
+        db.commit()
+    except sqlite3.OperationalError:
+        pass  # 字段已存在
 
     if cursor.execute('SELECT COUNT(*) FROM breed_info').fetchone()[0] == 0:
         init_breed_info(cursor)

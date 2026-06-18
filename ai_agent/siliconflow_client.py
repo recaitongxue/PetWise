@@ -31,16 +31,17 @@ class SiliconFlowClient:
         self.base_url = base_url or Config.SILICONFLOW_API_URL
         self.model = model or Config.SILICONFLOW_MODEL
         
-        if not self.api_key:
-            raise APIException("API key is required")
-        
         self.session = requests.Session()
         self.session.headers.update({
-            "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         })
         
-        logger.info(f"SiliconFlow Client initialized with model: {self.model}")
+        if self.api_key:
+            self.session.headers.update({
+                "Authorization": f"Bearer {self.api_key}"
+            })
+        
+        logger.info(f"SiliconFlow Client initialized with model: {self.model}, base_url: {self.base_url}")
     
     def chat_completion(self, messages: List[Dict[str, str]], 
                        temperature: float = 0.7,
