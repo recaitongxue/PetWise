@@ -1,0 +1,266 @@
+<template>
+  <AdminLayout>
+    <div class="announcements-page">
+      <div class="page-header">
+        <div class="header-title">
+          <h1>📢 公告管理</h1>
+          <p class="subtitle">发布和管理系统公告信息</p>
+        </div>
+      </div>
+        
+        <div class="add-section">
+          <h3>发布新公告</h3>
+          <el-form :model="form" label-width="80px">
+            <el-form-item label="标题">
+              <el-input v-model="form.title" placeholder="请输入公告标题" />
+            </el-form-item>
+            <el-form-item label="内容">
+              <textarea v-model="form.content" placeholder="请输入公告内容" rows="4" class="custom-textarea" />
+            </el-form-item>
+            <el-form-item>
+              <el-checkbox v-model="form.is_pinned">置顶公告</el-checkbox>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="createAnnouncement">发布公告</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+        
+        <div class="list-section">
+          <h3>公告列表</h3>
+          
+          <div v-if="announcements.length" class="announcement-list">
+            <div 
+              v-for="ann in announcements" 
+              :key="ann.id" 
+              class="announcement-item"
+            >
+              <div class="ann-header">
+                <span v-if="ann.is_pinned" class="pin-badge">📌</span>
+                <span class="ann-title">{{ ann.title }}</span>
+              </div>
+              <p class="ann-content">{{ ann.content }}</p>
+              <div class="ann-footer">
+                <span class="ann-time">{{ ann.created_at }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div v-else class="empty-state">暂无公告</div>
+        </div>
+    </div>
+  </AdminLayout>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import AdminLayout from '@/components/AdminLayout.vue'
+import { adminAPI } from '@/api/admin'
+
+const announcements = ref([])
+
+const form = reactive({
+  title: '',
+  content: '',
+  is_pinned: false
+})
+
+const loadAnnouncements = async () => {
+  try {
+    const response = await adminAPI.getAnnouncements()
+    if (response.success) {
+      announcements.value = response.data || []
+    }
+  } catch (error) {
+    console.log('Failed to load announcements:', error)
+  }
+}
+
+const createAnnouncement = async () => {
+  if (!form.title || !form.content) {
+    ElMessage.error('请填写标题和内容')
+    return
+  }
+  
+  try {
+    const response = await adminAPI.createAnnouncement({
+      title: form.title,
+      content: form.content,
+      is_pinned: form.is_pinned ? 1 : 0
+    })
+    
+    if (response.success) {
+      ElMessage.success('发布成功')
+      form.title = ''
+      form.content = ''
+      form.is_pinned = false
+      await loadAnnouncements()
+    }
+  } catch (error) {
+    ElMessage.error('发布失败')
+  }
+}
+
+onMounted(() => {
+  loadAnnouncements()
+})
+</script>
+
+<style scoped>
+.admin-page {
+  min-height: 100vh;
+  background: #f5f7fa;
+}
+
+.admin-container {
+  display: flex;
+  gap: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.sidebar {
+  width: 200px;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-title {
+  font-size: 18px;
+  margin: 0 0 20px 0;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.nav-item {
+  padding: 10px 15px;
+  text-decoration: none;
+  color: #666;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.nav-item:hover {
+  background: #f5f7fa;
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.main-content {
+  flex: 1;
+}
+
+.main-content h1 {
+  margin: 0 0 20px 0;
+  font-size: 24px;
+}
+
+.add-section {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
+}
+
+.add-section h3 {
+  margin: 0 0 20px 0;
+  font-size: 16px;
+}
+
+.custom-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 10px 15px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  font-size: 14px;
+  resize: vertical;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.custom-textarea:focus {
+  outline: none;
+  border-color: #409eff;
+}
+
+.custom-textarea::placeholder {
+  color: #999;
+}
+
+.list-section {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.list-section h3 {
+  margin: 0 0 20px 0;
+  font-size: 16px;
+}
+
+.announcement-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.announcement-item {
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.ann-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.pin-badge {
+  font-size: 16px;
+}
+
+.ann-title {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.ann-content {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.ann-footer {
+  margin-top: 10px;
+}
+
+.ann-time {
+  font-size: 12px;
+  color: #999;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px;
+  color: #999;
+}
+</style>
