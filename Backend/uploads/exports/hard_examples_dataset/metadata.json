@@ -1,0 +1,12 @@
+{
+  "total_samples": 1,
+  "breeds": [
+    "比格犬"
+  ],
+  "label_mapping": {
+    "比格犬": 0
+  },
+  "exported_at": "2026-06-22 21:01:31.424801",
+  "status": "approved",
+  "include_relabel": true
+}

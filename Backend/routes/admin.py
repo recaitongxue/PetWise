@@ -1,3 +1,4 @@
+import os
 from flask import Blueprint, request, jsonify, session
 from models.db import get_db
 from utils import log_action, admin_required, get_current_user_id
@@ -616,8 +617,8 @@ def add_model():
             db.execute('UPDATE llm_models SET is_default = 0 WHERE is_default = 1')
 
         db.execute('''
-            INSERT INTO llm_models (name, provider, api_key, base_url, model_name, max_tokens, temperature, top_p, is_active, is_default, description, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            INSERT INTO llm_models (name, provider, api_key, base_url, model_name, max_tokens, temperature, top_p, is_active, is_default, description, is_embedding, embedding_dim, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ''', (
             data['name'],
             data['provider'],
@@ -629,7 +630,9 @@ def add_model():
             data.get('top_p', 0.9),
             data.get('is_active', 1),
             is_default,
-            data.get('description')
+            data.get('description'),
+            data.get('is_embedding', 0),
+            data.get('embedding_dim', 0)
         ))
         db.commit()
 
@@ -666,7 +669,7 @@ def update_model(model_id):
         updates = []
         params = []
 
-        fields = ['name', 'provider', 'api_key', 'base_url', 'model_name', 'max_tokens', 'temperature', 'top_p', 'is_active', 'is_default', 'description']
+        fields = ['name', 'provider', 'api_key', 'base_url', 'model_name', 'max_tokens', 'temperature', 'top_p', 'is_active', 'is_default', 'description', 'is_embedding', 'embedding_dim']
         for field in fields:
             if field in data:
                 updates.append(f'{field} = ?')
@@ -741,6 +744,51 @@ def set_default_model(model_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@admin_bp.route('/admin/models/embedding/default', methods=['GET'])
+@admin_required
+def get_default_embedding_model():
+    try:
+        db = get_db()
+        model = db.execute('SELECT * FROM llm_models WHERE is_embedding = 1 AND is_default = 1 AND is_active = 1 LIMIT 1').fetchone()
+        if model:
+            return jsonify({"success": True, "data": dict(model)})
+        else:
+            return jsonify({"success": False, "error": "No default embedding model found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/models/embedding/default/<int:model_id>', methods=['POST'])
+@admin_required
+def set_default_embedding_model(model_id):
+    try:
+        admin_id = get_current_user_id()
+        db = get_db()
+
+        model = db.execute('SELECT * FROM llm_models WHERE id = ?', (model_id,)).fetchone()
+        if not model:
+            return jsonify({"error": "Model not found"}), 404
+
+        if model['is_embedding'] != 1:
+            return jsonify({"error": "Model is not an embedding model"}), 400
+
+        db.execute('UPDATE llm_models SET is_default = 0 WHERE is_embedding = 1 AND is_default = 1')
+        db.execute('UPDATE llm_models SET is_default = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?', (model_id,))
+        db.commit()
+
+        embedding_config = {
+            'api_key': model['api_key'],
+            'base_url': model['base_url'],
+            'model_name': model['model_name'],
+            'embedding_dim': model['embedding_dim']
+        }
+        ai_client.set_default_embedding_config(embedding_config)
+
+        log_action(db, admin_id, 'admin_set_default_embedding', {'model_id': model_id})
+
+        return jsonify({"success": True, "message": "Default embedding model updated", "model": embedding_config})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @admin_bp.route('/admin/knowledge', methods=['GET'])
 @admin_required
 def get_knowledge():
@@ -748,38 +796,45 @@ def get_knowledge():
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('per_page', 20))
         category = request.args.get('category')
-        offset = (page - 1) * per_page
 
-        db = get_db()
-        query = 'SELECT k.*, u.username as creator FROM knowledge_base k LEFT JOIN users u ON k.created_by = u.id'
-        params = []
+        # Query from AI Agent service knowledge base
+        result = ai_client.knowledge_query_all(category=category, page=page, per_page=per_page)
 
-        if category:
-            query += ' WHERE category = ?'
-            params.append(category)
-        
-        query += ' ORDER BY k.created_at DESC LIMIT ? OFFSET ?'
-        params.extend([per_page, offset])
+        if result.get("success"):
+            return jsonify(result)
+        else:
+            # Fallback to local database
+            db = get_db()
+            offset = (page - 1) * per_page
+            query = 'SELECT k.*, u.username as creator FROM knowledge_base k LEFT JOIN users u ON k.created_by = u.id'
+            params = []
 
-        knowledge = db.execute(query, params).fetchall()
+            if category:
+                query += ' WHERE category = ?'
+                params.append(category)
 
-        count_query = 'SELECT COUNT(*) FROM knowledge_base'
-        count_params = []
-        if category:
-            count_query += ' WHERE category = ?'
-            count_params.append(category)
-        total = db.execute(count_query, count_params).fetchone()[0]
+            query += ' ORDER BY k.created_at DESC LIMIT ? OFFSET ?'
+            params.extend([per_page, offset])
 
-        return jsonify({
-            "success": True,
-            "data": [dict(k) for k in knowledge],
-            "pagination": {
-                "page": page,
-                "per_page": per_page,
-                "total": total,
-                "pages": (total + per_page - 1) // per_page
-            }
-        })
+            knowledge = db.execute(query, params).fetchall()
+
+            count_query = 'SELECT COUNT(*) FROM knowledge_base'
+            count_params = []
+            if category:
+                count_query += ' WHERE category = ?'
+                count_params.append(category)
+            total = db.execute(count_query, count_params).fetchone()[0]
+
+            return jsonify({
+                "success": True,
+                "data": [dict(k) for k in knowledge],
+                "pagination": {
+                    "page": page,
+                    "per_page": per_page,
+                    "total": total,
+                    "pages": (total + per_page - 1) // per_page
+                }
+            })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -876,6 +931,36 @@ def get_knowledge_categories():
         db = get_db()
         categories = db.execute('SELECT category, COUNT(*) as count FROM knowledge_base GROUP BY category').fetchall()
         return jsonify({"success": True, "data": [dict(c) for c in categories]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/knowledge/upload', methods=['POST'])
+@admin_required
+def upload_knowledge_file():
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file part"}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+        
+        category = request.form.get('category', 'general')
+        
+        allowed_extensions = ['.md', '.docx', '.doc', '.pdf', '.txt', '.json']
+        _, ext = os.path.splitext(file.filename)
+        if ext.lower() not in allowed_extensions:
+            return jsonify({"error": f"Unsupported file format: {ext}. Supported formats: {', '.join(allowed_extensions)}"}), 400
+        
+        from services.ai_agent_client import ai_client
+        
+        result = ai_client.upload_knowledge_file(file, category)
+        
+        if result.get("success"):
+            return jsonify(result)
+        else:
+            return jsonify(result), 500
+            
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
