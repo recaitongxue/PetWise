@@ -1,0 +1,168 @@
+/* PetWise 主题：天蓝色 + 橙色 */
+:root {
+  /* 天蓝色系 */
+  --color-primary: #29B6F6;
+  --color-primary-light: #4FC3F7;
+  --color-primary-lighter: #B3E5FC;
+  --color-primary-dark: #0288D1;
+  --color-primary-bg: #E1F5FE;
+
+  /* 橙色系 */
+  --color-accent: #FF9800;
+  --color-accent-light: #FFB74D;
+  --color-accent-lighter: #FFE0B2;
+  --color-accent-dark: #F57C00;
+  --color-accent-bg: #FFF3E0;
+
+  /* 辅助色 */
+  --color-success: #66BB6A;
+  --color-success-bg: #E8F5E9;
+  --color-warning: #FFA726;
+  --color-danger: #EF5350;
+  --color-danger-bg: #FFEBEE;
+  --color-info: #78909C;
+
+  /* 背景与文字 */
+  --color-bg: #F0F9FF;
+  --color-bg-alt: #FFFAF5;
+  --color-bg-card: #FFFFFF;
+  --color-text: #1E3A5F;
+  --color-text-secondary: #546E7A;
+  --color-text-muted: #90A4AE;
+  --color-border: #B3E5FC;
+  --color-border-light: #E1F5FE;
+
+  /* 渐变 */
+  --gradient-hero: linear-gradient(135deg, #29B6F6 0%, #039BE5 55%, #FF9800 100%);
+  --gradient-primary: linear-gradient(135deg, #4FC3F7 0%, #29B6F6 100%);
+  --gradient-accent: linear-gradient(135deg, #FFB74D 0%, #FF9800 100%);
+  --gradient-soft: linear-gradient(135deg, #E1F5FE 0%, #FFF3E0 100%);
+  --gradient-warm: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
+
+  /* 阴影 */
+  --shadow-sm: 0 2px 8px rgba(41, 182, 246, 0.1);
+  --shadow-md: 0 4px 20px rgba(41, 182, 246, 0.14);
+  --shadow-lg: 0 8px 32px rgba(41, 182, 246, 0.18);
+  --shadow-orange: 0 4px 16px rgba(255, 152, 0, 0.28);
+  --shadow-card: 0 4px 15px rgba(30, 58, 95, 0.06);
+
+  /* 圆角 */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  /* 管理后台 */
+  --color-admin-bg: #0D3B66;
+  --color-admin-sidebar: #1565C0;
+  --color-admin-header: linear-gradient(135deg, #0D47A1 0%, #1565C0 100%);
+
+  /* Element Plus 主题色覆盖 */
+  --el-color-primary: #29B6F6;
+  --el-color-primary-light-3: #4FC3F7;
+  --el-color-primary-light-5: #81D4FA;
+  --el-color-primary-light-7: #B3E5FC;
+  --el-color-primary-light-9: #E1F5FE;
+  --el-color-primary-dark-2: #0288D1;
+  --el-color-success: #66BB6A;
+  --el-color-warning: #FF9800;
+  --el-color-danger: #EF5350;
+}
+
+/* 全局基础 */
+body {
+  color: var(--color-text);
+  background-color: var(--color-bg);
+}
+
+a {
+  color: var(--color-primary);
+}
+
+/* 通用页面容器 */
+.page-shell {
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.page-title {
+  font-size: 28px;
+  color: var(--color-text);
+  margin-bottom: 24px;
+}
+
+/* 通用卡片 */
+.theme-card {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-border-light);
+}
+
+/* 主按钮 - 天蓝 */
+.btn-sky {
+  display: inline-block;
+  background: var(--gradient-primary);
+  color: white;
+  padding: 10px 24px;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-sky:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* 强调按钮 - 橙色 */
+.btn-orange {
+  display: inline-block;
+  background: var(--gradient-accent);
+  color: white;
+  padding: 10px 24px;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow-orange);
+}
+
+.btn-orange:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 152, 0, 0.35);
+}
+
+/* 渐变标题区 */
+.hero-banner {
+  background: var(--gradient-hero);
+  color: white;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+/* Element Plus 按钮增强 */
+.el-button--primary {
+  --el-button-bg-color: var(--color-primary);
+  --el-button-border-color: var(--color-primary);
+  --el-button-hover-bg-color: var(--color-primary-dark);
+  --el-button-hover-border-color: var(--color-primary-dark);
+}
+
+.el-button--primary.is-plain {
+  --el-button-hover-text-color: var(--color-primary-dark);
+}
