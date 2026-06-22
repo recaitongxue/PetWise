@@ -1,0 +1,1 @@
+import{q as r}from"./index-Bu0UmLiz.js";const o={register(t){return r.post("/auth/register",t)},login(t){return r.post("/auth/login",t)},logout(){return r.post("/auth/logout")},getProfile(){return r.get("/auth/profile")},updateProfile(t){return r.put("/auth/profile",t)}};export{o as a};
