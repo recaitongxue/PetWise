@@ -1,0 +1,1340 @@
+{
+  "version": "1.2",
+  "created_at": "2026-05-21",
+  "last_updated": "2026-05-21",
+  "categories": {
+    "dog_breeds": {
+      "name": "狗狗品种",
+      "description": "常见狗狗品种介绍",
+      "entries": [
+        {
+          "id": "dog_golden",
+          "name": "金毛寻回犬",
+          "description": "性格温顺友善，聪明易训练，是优秀的家庭伴侣犬和工作犬",
+          "origin": "英国",
+          "size": "大型犬",
+          "weight": "25-34kg",
+          "life_span": "10-12年",
+          "temperament": ["友善", "聪明", "忠诚", "活泼", "耐心"],
+          "coat": "长毛，金黄色或奶油色",
+          "health_issues": ["髋关节发育不良", "肘关节发育不良", "白内障", "心脏病", "皮肤过敏"],
+          "exercise_needs": "高",
+          "grooming_needs": "中等",
+          "family_friendly": true,
+          "training_tips": "易于训练，适合作为导盲犬、搜救犬和家庭伴侣",
+          "special_features": "水猎犬血统，擅长游泳和寻回"
+        },
+        {
+          "id": "dog_teddy",
+          "name": "泰迪犬（贵宾犬）",
+          "description": "聪明活泼，不掉毛，适合过敏体质人群，智商排名第二",
+          "origin": "法国",
+          "size": "小型犬",
+          "weight": "3-6kg",
+          "life_span": "12-15年",
+          "temperament": ["聪明", "活泼", "警觉", "粘人", "活泼"],
+          "coat": "卷毛，多种颜色（红棕、黑色、白色、灰色等）",
+          "health_issues": ["髌骨脱位", "牙齿问题", "皮肤病", "白内障"],
+          "exercise_needs": "中等",
+          "grooming_needs": "高",
+          "family_friendly": true,
+          "training_tips": "智商排名第二，学习能力强，适合各种训练",
+          "special_features": "不掉毛，适合城市公寓饲养"
+        },
+        {
+          "id": "dog_husky",
+          "name": "哈士奇",
+          "description": "精力充沛，性格活泼，表情丰富，需要大量运动",
+          "origin": "西伯利亚",
+          "size": "中型犬",
+          "weight": "16-27kg",
+          "life_span": "12-14年",
+          "temperament": ["友善", "活泼", "固执", "独立", "热情"],
+          "coat": "双层毛，黑白/灰白/红白等配色",
+          "health_issues": ["髋关节发育不良", "眼疾（白内障、青光眼）", "皮肤病", "肠胃敏感"],
+          "exercise_needs": "极高",
+          "grooming_needs": "高",
+          "family_friendly": true,
+          "training_tips": "需要耐心训练，服从性稍差，适合有经验的主人",
+          "special_features": "独特的蓝色眼睛，喜欢嚎叫"
+        },
+        {
+          "id": "dog_bulldog",
+          "name": "英国斗牛犬",
+          "description": "性格温顺，表情憨厚，适合公寓饲养，是优秀的家庭伴侣",
+          "origin": "英国",
+          "size": "中型犬",
+          "weight": "20-25kg",
+          "life_span": "8-10年",
+          "temperament": ["温顺", "忠诚", "勇敢", "安静", "友善"],
+          "coat": "短毛，多种颜色（红白、虎斑等）",
+          "health_issues": ["呼吸道问题", "皮肤褶皱炎", "髋关节问题", "眼部问题"],
+          "exercise_needs": "低",
+          "grooming_needs": "低",
+          "family_friendly": true,
+          "training_tips": "容易训练，适合新手主人",
+          "special_features": "独特的皱褶面部，标志性的斗牛犬姿态"
+        },
+        {
+          "id": "dog_corgi",
+          "name": "柯基犬",
+          "description": "腿短身长，性格开朗，聪明可爱，女王伊丽莎白二世的最爱",
+          "origin": "英国威尔士",
+          "size": "小型犬",
+          "weight": "11-14kg",
+          "life_span": "12-15年",
+          "temperament": ["开朗", "聪明", "活泼", "友善", "固执"],
+          "coat": "中长毛，双色/三色",
+          "health_issues": ["椎间盘问题", "髋关节发育不良", "肥胖", "眼疾"],
+          "exercise_needs": "中等",
+          "grooming_needs": "中等",
+          "family_friendly": true,
+          "training_tips": "智商高，学习能力强，但需要注意控制体重",
+          "special_features": "矮胖的身材，可爱的屁股"
+        },
+        {
+          "id": "dog_german_shepherd",
+          "name": "德国牧羊犬",
+          "description": "聪明勇敢，忠诚可靠，是优秀的工作犬和家庭护卫犬",
+          "origin": "德国",
+          "size": "大型犬",
+          "weight": "22-40kg",
+          "life_span": "9-13年",
+          "temperament": ["忠诚", "勇敢", "聪明", "警觉", "自信"],
+          "coat": "中长毛，黑背黄腹或全黑",
+          "health_issues": ["髋关节发育不良", "肘关节发育不良", "肠胃问题", "皮肤病"],
+          "exercise_needs": "极高",
+          "grooming_needs": "中等",
+          "family_friendly": true,
+          "training_tips": "非常聪明，适合各种工作训练，需要严格的社会化",
+          "special_features": "军警犬首选，全能工作犬"
+        },
+        {
+          "id": "dog_shiba",
+          "name": "柴犬",
+          "description": "日本国宝级犬种，表情丰富，性格独立，常出现在表情包中",
+          "origin": "日本",
+          "size": "小型犬",
+          "weight": "8-11kg",
+          "life_span": "12-15年",
+          "temperament": ["独立", "警觉", "忠诚", "活泼", "倔强"],
+          "coat": "短毛，赤柴/黑柴/白柴",
+          "health_issues": ["过敏性皮炎", "髋关节发育不良", "眼疾"],
+          "exercise_needs": "中等",
+          "grooming_needs": "中等",
+          "family_friendly": true,
+          "training_tips": "性格倔强，需要耐心和正向训练",
+          "special_features": "著名的柴犬笑，表情包明星"
+        },
+        {
+          "id": "dog_beagle",
+          "name": "比格犬",
+          "description": "嗅觉灵敏，性格友善，是优秀的猎犬和家庭伴侣",
+          "origin": "英国",
+          "size": "中型犬",
+          "weight": "8-14kg",
+          "life_span": "12-15年",
+          "temperament": ["友善", "活泼", "好奇", "耐心", "固执"],
+          "coat": "短毛，三色（白、黑、棕）",
+          "health_issues": ["耳朵感染", "肥胖", "髋关节发育不良", "眼疾"],
+          "exercise_needs": "高",
+          "grooming_needs": "低",
+          "family_friendly": true,
+          "training_tips": "嗅觉非常灵敏，容易被气味吸引，需要耐心训练",
+          "special_features": "著名的史努比原型"
+        },
+        {
+          "id": "dog_samoyed",
+          "name": "萨摩耶",
+          "description": "笑容天使，性格温顺友善，拥有雪白的毛发",
+          "origin": "俄罗斯",
+          "size": "大型犬",
+          "weight": "16-30kg",
+          "life_span": "12-14年",
+          "temperament": ["友善", "活泼", "忠诚", "乐观", "热情"],
+          "coat": "长毛，纯白色",
+          "health_issues": ["髋关节发育不良", "眼疾", "皮肤病", "肠胃敏感"],
+          "exercise_needs": "高",
+          "grooming_needs": "极高",
+          "family_friendly": true,
+          "training_tips": "性格温顺，适合家庭，但需要大量运动",
+          "special_features": "著名的萨摩耶微笑"
+        },
+        {
+          "id": "dog_french_bulldog",
+          "name": "法国斗牛犬",
+          "description": "性格温顺，体型小巧，是城市生活的理想伴侣",
+          "origin": "法国",
+          "size": "小型犬",
+          "weight": "8-14kg",
+          "life_span": "10-12年",
+          "temperament": ["温顺", "活泼", "警觉", "粘人", "友善"],
+          "coat": "短毛，多种颜色（虎斑、奶油色等）",
+          "health_issues": ["呼吸道问题", "皮肤问题", "眼疾", "脊椎问题"],
+          "exercise_needs": "低",
+          "grooming_needs": "低",
+          "family_friendly": true,
+          "training_tips": "聪明但有时固执，适合公寓饲养",
+          "special_features": "蝙蝠耳造型，时尚圈新宠"
+        },
+        {
+          "id": "dog_labrador",
+          "name": "拉布拉多寻回犬",
+          "description": "世界最受欢迎犬种，温顺聪明，适合家庭和工作",
+          "origin": "加拿大",
+          "size": "大型犬",
+          "weight": "25-36kg",
+          "life_span": "10-12年",
+          "temperament": ["温顺", "友善", "聪明", "活泼", "忠诚"],
+          "coat": "短毛，黑色/黄色/巧克力色",
+          "health_issues": ["髋关节发育不良", "肘关节发育不良", "眼疾", "肥胖"],
+          "exercise_needs": "高",
+          "grooming_needs": "低",
+          "family_friendly": true,
+          "training_tips": "非常聪明易训练，适合作为导盲犬和家庭伴侣",
+          "special_features": "导盲犬首选，游泳健将"
+        },
+        {
+          "id": "dog_pug",
+          "name": "巴哥犬",
+          "description": "表情丰富，性格温顺，体型小巧，适合城市生活",
+          "origin": "中国",
+          "size": "小型犬",
+          "weight": "6-8kg",
+          "life_span": "12-15年",
+          "temperament": ["温顺", "活泼", "友善", "粘人", "安静"],
+          "coat": "短毛，银色/黑色/黄褐色",
+          "health_issues": ["呼吸道问题", "眼睛突出", "皮肤褶皱炎", "髌骨脱位"],
+          "exercise_needs": "低",
+          "grooming_needs": "低",
+          "family_friendly": true,
+          "training_tips": "聪明但有时固执，需要耐心训练",
+          "special_features": "标志性的褶皱脸和卷尾巴"
+        },
+        {
+          "id": "dog_shih_tzu",
+          "name": "西施犬",
+          "description": "中国宫廷犬，性格温顺，毛发华丽",
+          "origin": "中国",
+          "size": "小型犬",
+          "weight": "4-7kg",
+          "life_span": "12-15年",
+          "temperament": ["温顺", "活泼", "友善", "粘人", "警觉"],
+          "coat": "长毛，多种颜色",
+          "health_issues": ["眼睛问题", "呼吸道问题", "牙齿问题", "皮肤问题"],
+          "exercise_needs": "低",
+          "grooming_needs": "极高",
+          "family_friendly": true,
+          "training_tips": "智商中等，需要耐心训练",
+          "special_features": "华丽长毛，高贵气质"
+        },
+        {
+          "id": "dog_dachshund",
+          "name": "腊肠犬",
+          "description": "长身短腿，性格活泼，勇敢好奇",
+          "origin": "德国",
+          "size": "小型犬",
+          "weight": "4-11kg",
+          "life_span": "12-16年",
+          "temperament": ["活泼", "勇敢", "好奇", "固执", "友善"],
+          "coat": "短毛/长毛/刚毛",
+          "health_issues": ["椎间盘问题", "肥胖", "眼睛问题", "关节问题"],
+          "exercise_needs": "中等",
+          "grooming_needs": "低-高（根据毛发类型）",
+          "family_friendly": true,
+          "training_tips": "性格固执，需要耐心和正向训练",
+          "special_features": "独特的长身短腿造型"
+        },
+        {
+          "id": "dog_rottweiler",
+          "name": "罗威纳犬",
+          "description": "强壮有力，忠诚护主，是优秀的护卫犬",
+          "origin": "德国",
+          "size": "大型犬",
+          "weight": "35-50kg",
+          "life_span": "9-11年",
+          "temperament": ["忠诚", "勇敢", "自信", "警觉", "温顺（对家人）"],
+          "coat": "短毛，黑底棕斑",
+          "health_issues": ["髋关节发育不良", "肘关节发育不良", "心脏病", "皮肤病"],
+          "exercise_needs": "高",
+          "grooming_needs": "低",
+          "family_friendly": true,
+          "training_tips": "需要严格训练和社会化，适合有经验的主人",
+          "special_features": "天生的护卫犬，强壮有力"
+        }
+      ]
+    },
+    "cat_breeds": {
+      "name": "猫咪品种",
+      "description": "常见猫咪品种介绍",
+      "entries": [
+        {
+          "id": "cat_persian",
+          "name": "波斯猫",
+          "description": "优雅高贵，长毛华丽，性格温顺，是最古老的猫品种之一",
+          "origin": "伊朗",
+          "size": "中型",
+          "weight": "3-5kg",
+          "life_span": "12-17年",
+          "temperament": ["温顺", "安静", "优雅", "粘人", "慵懒"],
+          "coat": "长毛，多种颜色（白色、黑色、蓝色、奶油色等）",
+          "health_issues": ["多囊肾", "呼吸道问题", "毛发球", "眼部问题"],
+          "exercise_needs": "低",
+          "grooming_needs": "极高",
+          "family_friendly": true,
+          "care_tips": "需要每日梳毛，注意眼睛和面部清洁",
+          "special_features": "扁平面孔，华丽长毛"
+        },
+        {
+          "id": "cat_british",
+          "name": "英国短毛猫",
+          "description": "圆头圆脸，性格温和，容易饲养，是最受欢迎的品种之一",
+          "origin": "英国",
+          "size": "中型",
+          "weight": "4-8kg",
+          "life_span": "12-17年",
+          "temperament": ["温和", "安静", "独立", "友善", "慵懒"],
+          "coat": "短毛，蓝灰色为主，也有其他颜色",
+          "health_issues": ["肥胖", "多囊肾", "心脏病（HCM）", "牙齿问题"],
+          "exercise_needs": "中等",
+          "grooming_needs": "低",
+          "family_friendly": true,
+          "care_tips": "注意控制体重，定期梳毛和口腔护理",
+          "special_features": "标志性的蓝灰色被毛，铜色眼睛"
+        },
+        {
+          "id": "cat_ragdoll",
+          "name": "布偶猫",
+          "description": "体型大，性格温顺如布偶，被抱起时全身放松，适合家庭",
+          "origin": "美国",
+          "size": "大型",
+          "weight": "4-9kg",
+          "life_span": "12-17年",
+          "temperament": ["温顺", "粘人", "安静", "友善", "慵懒"],
+          "coat": "中长毛，双色/重点色/手套色",
+          "health_issues": ["心肌病（HCM）", "多囊肾", "膀胱结石", "肠胃敏感"],
+          "exercise_needs": "低",
+          "grooming_needs": "中等",
+          "family_friendly": true,
+          "care_tips": "性格温顺，喜欢被抱，需要定期梳毛",
+          "special_features": "被抱起时像布偶一样放松"
+        },
+        {
+          "id": "cat_american",
+          "name": "美国短毛猫",
+          "description": "健壮活泼，适应力强，性格友善，是美国最受欢迎的猫",
+          "origin": "美国",
+          "size": "中型",
+          "weight": "4-6kg",
+          "life_span": "15-20年",
+          "temperament": ["活泼", "友善", "聪明", "独立", "好奇"],
+          "coat": "短毛，虎斑花纹为主",
+          "health_issues": ["肥胖", "心脏病（HCM）", "牙齿问题", "关节问题"],
+          "exercise_needs": "中等",
+          "grooming_needs": "低",
+          "family_friendly": true,
+          "care_tips": "寿命长，健康状况良好，需要控制体重",
+          "special_features": "经典虎斑花纹，强壮健康"
+        },
+        {
+          "id": "cat_sphynx",
+          "name": "斯芬克斯猫（无毛猫）",
+          "description": "无毛品种，性格活泼，适合过敏人群，需要特殊护理",
+          "origin": "加拿大",
+          "size": "中型",
+          "weight": "3-5kg",
+          "life_span": "12-15年",
+          "temperament": ["活泼", "聪明", "粘人", "好奇", "友善"],
+          "coat": "无毛（可能有少量绒毛）",
+          "health_issues": ["皮肤问题", "体温调节", "牙齿问题", "晒伤"],
+          "exercise_needs": "高",
+          "grooming_needs": "中等",
+          "family_friendly": true,
+          "care_tips": "需要特殊保暖，定期清洁皮肤，避免阳光直射",
+          "special_features": "无毛外观，体温比普通猫高"
+        },
+        {
+          "id": "cat_maine_coon",
+          "name": "缅因猫",
+          "description": "体型巨大，被称为猫中巨人，性格温顺友善",
+          "origin": "美国",
+          "size": "大型",
+          "weight": "5-11kg",
+          "life_span": "12-15年",
+          "temperament": ["温顺", "友善", "聪明", "独立", "安静"],
+          "coat": "长毛，多种颜色",
+          "health_issues": ["心肌病（HCM）", "髋关节发育不良", "多囊肾", "肥胖"],
+          "exercise_needs": "中等",
+          "grooming_needs": "高",
+          "family_friendly": true,
+          "care_tips": "需要定期梳毛，注意关节健康",
+          "special_features": "体型巨大，聪明友善"
+        },
+        {
+          "id": "cat_siamese",
+          "name": "暹罗猫",
+          "description": "优雅修长，性格活泼，善于交流，是最古老的品种之一",
+          "origin": "泰国",
+          "size": "中型",
+          "weight": "3-5kg",
+          "life_span": "12-15年",
+          "temperament": ["活泼", "聪明", "好奇", "粘人", "话痨"],
+          "coat": "短毛，重点色（海豹色、蓝色、巧克力色等）",
+          "health_issues": ["牙齿问题", "呼吸道问题", "青光眼", "牙结石"],
+          "exercise_needs": "高",
+          "grooming_needs": "低",
+          "family_friendly": true,
+          "care_tips": "非常聪明，需要互动和玩具，喜欢说话",
+          "special_features": "蓝色眼睛，重点色毛发，喜欢发声"
+        },
+        {
+          "id": "cat_russian_blue",
+          "name": "俄罗斯蓝猫",
+          "description": "优雅神秘，银蓝色被毛，性格温和安静",
+          "origin": "俄罗斯",
+          "size": "中型",
+          "weight": "3-5kg",
+          "life_span": "15-20年",
+          "temperament": ["温和", "安静", "独立", "友善", "害羞"],
+          "coat": "短毛，银蓝色",
+          "health_issues": ["牙齿问题", "膀胱结石", "过敏"],
+          "exercise_needs": "中等",
+          "grooming_needs": "低",
+          "family_friendly": true,
+          "care_tips": "性格稍害羞，需要耐心相处，寿命较长",
+          "special_features": "闪亮的银蓝色被毛，绿色眼睛"
+        },
+        {
+          "id": "cat_ragamuffin",
+          "name": "褴褛猫",
+          "description": "布偶猫的亲戚，性格更加温顺粘人",
+          "origin": "美国",
+          "size": "大型",
+          "weight": "4-8kg",
+          "life_span": "12-17年",
+          "temperament": ["温顺", "粘人", "友善", "安静", "慵懒"],
+          "coat": "长毛，多种颜色和图案",
+          "health_issues": ["多囊肾", "心肌病（HCM）", "牙齿问题"],
+          "exercise_needs": "低",
+          "grooming_needs": "中等",
+          "family_friendly": true,
+          "care_tips": "非常粘人，喜欢跟随主人，需要梳毛",
+          "special_features": "超级粘人，喜欢被抱着"
+        },
+        {
+          "id": "cat_bengal",
+          "name": "孟加拉豹猫",
+          "description": "野性外观，家猫性格，活泼好动，像小豹子",
+          "origin": "美国",
+          "size": "中型",
+          "weight": "4-7kg",
+          "life_span": "12-16年",
+          "temperament": ["活泼", "聪明", "好奇", "友善", "精力充沛"],
+          "coat": "短毛，豹纹/大理石纹",
+          "health_issues": ["心肌病（HCM）", "多囊肾", "牙齿问题"],
+          "exercise_needs": "极高",
+          "grooming_needs": "低",
+          "family_friendly": true,
+          "care_tips": "需要大量运动和互动，喜欢玩水",
+          "special_features": "野生豹纹外观，家猫性格"
+        },
+        {
+          "id": "cat_manx",
+          "name": "曼岛猫",
+          "description": "无尾或短尾猫，性格友善聪明，来自英国曼岛",
+          "origin": "英国曼岛",
+          "size": "中型",
+          "weight": "3-5kg",
+          "life_span": "12-15年",
+          "temperament": ["友善", "聪明", "活泼", "粘人", "好奇"],
+          "coat": "短毛/长毛，多种颜色",
+          "health_issues": ["脊柱问题", "肠胃问题"],
+          "exercise_needs": "中等",
+          "grooming_needs": "低-中等",
+          "family_friendly": true,
+          "care_tips": "避免过度跳跃，注意脊柱健康",
+          "special_features": "无尾或短尾，像兔子一样跳跃"
+        },
+        {
+          "id": "cat_burmese",
+          "name": "缅甸猫",
+          "description": "性格温顺粘人，体型中等，眼睛大而圆",
+          "origin": "缅甸",
+          "size": "中型",
+          "weight": "3-5kg",
+          "life_span": "12-16年",
+          "temperament": ["温顺", "粘人", "活泼", "聪明", "友善"],
+          "coat": "短毛，深棕色/香槟色/蓝色等",
+          "health_issues": ["牙齿问题", "肥胖"],
+          "exercise_needs": "中等",
+          "grooming_needs": "低",
+          "family_friendly": true,
+          "care_tips": "非常粘人，需要主人陪伴",
+          "special_features": "金色眼睛，紧凑身材"
+        },
+        {
+          "id": "cat_himalayan",
+          "name": "喜马拉雅猫",
+          "description": "波斯猫和暹罗猫的混血，拥有暹罗猫的颜色和波斯猫的长毛",
+          "origin": "美国",
+          "size": "中型",
+          "weight": "3-5kg",
+          "life_span": "12-15年",
+          "temperament": ["温顺", "安静", "粘人", "友善", "慵懒"],
+          "coat": "长毛，重点色",
+          "health_issues": ["多囊肾", "呼吸道问题", "毛发球"],
+          "exercise_needs": "低",
+          "grooming_needs": "极高",
+          "family_friendly": true,
+          "care_tips": "需要每日梳毛，注意眼部清洁",
+          "special_features": "蓝色眼睛，长毛重点色"
+        },
+        {
+          "id": "cat_scottish_fold",
+          "name": "苏格兰折耳猫",
+          "description": "耳朵向前折叠，性格温和，外形可爱",
+          "origin": "英国",
+          "size": "中型",
+          "weight": "3-5kg",
+          "life_span": "12-15年",
+          "temperament": ["温和", "安静", "友善", "粘人", "慵懒"],
+          "coat": "短毛/长毛，多种颜色",
+          "health_issues": ["软骨发育不良", "关节问题", "心脏病"],
+          "exercise_needs": "低",
+          "grooming_needs": "低-中等",
+          "family_friendly": true,
+          "care_tips": "避免过度跳跃，注意关节健康",
+          "special_features": "标志性的折耳朵"
+        },
+        {
+          "id": "cat_oriental",
+          "name": "东方短毛猫",
+          "description": "暹罗猫的亲戚，外形优雅，性格活泼",
+          "origin": "泰国",
+          "size": "中型",
+          "weight": "3-5kg",
+          "life_span": "12-15年",
+          "temperament": ["活泼", "聪明", "好奇", "粘人", "话痨"],
+          "coat": "短毛，多种颜色和图案",
+          "health_issues": ["牙齿问题", "呼吸道问题"],
+          "exercise_needs": "高",
+          "grooming_needs": "低",
+          "family_friendly": true,
+          "care_tips": "需要大量互动和玩具",
+          "special_features": "修长体型，大耳朵"
+        }
+      ]
+    },
+    "pet_health": {
+      "name": "宠物医疗",
+      "description": "常见疾病预防和治疗",
+      "entries": [
+        {
+          "id": "health_vaccine",
+          "title": "疫苗接种指南",
+          "content": {
+            "dogs": {
+              "core_vaccines": ["犬瘟热", "犬细小病毒", "犬腺病毒", "狂犬病"],
+              "optional_vaccines": ["犬流感", "犬钩端螺旋体", "犬冠状病毒", "犬副流感"],
+              "puppy_schedule": ["6-8周", "10-12周", "14-16周", "16-18周", "1岁"],
+              "adult_booster": "每年一次核心疫苗，狂犬病按当地法规",
+              "notes": ["接种前确保健康", "接种后观察30分钟", "避免洗澡2-3天"]
+            },
+            "cats": {
+              "core_vaccines": ["猫瘟（泛白细胞减少症）", "猫疱疹病毒", "猫杯状病毒", "狂犬病"],
+              "optional_vaccines": ["猫白血病（FeLV）", "猫艾滋病（FIV）", "猫传染性腹膜炎（FIP）"],
+              "kitten_schedule": ["6-8周", "10-12周", "14-16周", "16-18周", "1岁"],
+              "adult_booster": "每1-3年一次，根据疫苗类型",
+              "notes": ["室内猫也需要接种", "白血病疫苗建议检测后接种"]
+            }
+          },
+          "importance": "疫苗是预防传染病最有效的方式，务必按时接种"
+        },
+        {
+          "id": "health_parasite",
+          "title": "寄生虫预防",
+          "content": {
+            "internal_parasites": ["蛔虫", "钩虫", "绦虫", "心丝虫", "球虫", "滴虫"],
+            "external_parasites": ["跳蚤", "蜱虫", "耳螨", "疥螨", "虱子"],
+            "prevention_schedule": {
+              "monthly": ["驱虫药", "跳蚤预防"],
+              "yearly": ["粪便检查", "心丝虫检测"]
+            },
+            "symptoms": {
+              "internal": ["腹泻", "呕吐", "体重下降", "贫血", "毛发粗糙", "腹部膨胀"],
+              "external": ["瘙痒", "掉毛", "皮肤红肿", "蜱虫附着", "耳朵异味", "小黑点"]
+            },
+            "treatment": {
+              "internal": ["口服驱虫药", "注射驱虫", "对症治疗"],
+              "external": ["外用驱虫药", "洗澡清洁", "环境消毒", "药浴"]
+            }
+          },
+          "importance": "定期驱虫是宠物健康的基础，尤其是户外活动的宠物"
+        },
+        {
+          "id": "health_dental",
+          "title": "口腔护理",
+          "content": {
+            "importance": "口腔疾病会影响全身健康，导致心脏病、肾病等严重问题",
+            "signs_of_problem": ["口臭", "牙龈红肿出血", "牙齿松动", "流口水", "进食困难", "牙齿变色"],
+            "preventive_care": [
+              "定期刷牙（每天最佳）",
+              "提供洁牙零食和玩具",
+              "定期口腔检查",
+              "专业洁牙（每年一次）",
+              "口腔喷雾和凝胶"
+            ],
+            "products": ["宠物专用牙膏", "牙刷/指套刷", "洁牙骨", "口腔喷雾", "漱口水"],
+            "dental_disease_stages": {
+              "stage1": "牙菌斑初期（可通过刷牙清除）",
+              "stage2": "牙龈炎（牙龈红肿发炎）",
+              "stage3": "牙周炎早期（牙周袋形成）",
+              "stage4": "牙周炎晚期（牙齿松动脱落）"
+            }
+          },
+          "importance": "口腔健康直接关系到宠物的整体健康和寿命"
+        },
+        {
+          "id": "health_emergency",
+          "title": "紧急情况处理",
+          "content": {
+            "emergency_signs": [
+              "持续呕吐或腹泻（超过24小时）",
+              "呼吸困难或急促",
+              "意识模糊或昏迷",
+              "外伤出血不止",
+              "摄入有毒物质",
+              "体温异常（过高或过低）",
+              "抽搐或癫痫发作",
+              "无法站立或行走",
+              "腹部膨胀坚硬",
+              "长时间不吃不喝"
+            ],
+            "first_aid_kit": [
+              "无菌纱布和绷带",
+              "碘伏和酒精",
+              "镊子和剪刀",
+              "体温计",
+              "急救手册",
+              "兽医联系方式",
+              "生理盐水",
+              "止血粉",
+              "伊丽莎白圈"
+            ],
+            "poisons": {
+              "dogs": ["巧克力", "葡萄/葡萄干", "洋葱/大蒜", "木糖醇", "人类药物", "咖啡", "酒精", "夏威夷果", "牛油果"],
+              "cats": ["对乙酰氨基酚", "布洛芬", "百合", "巧克力", "葡萄", "驱虫药过量", "精油", "茶树油"]
+            },
+            "emergency_steps": [
+              "保持冷静",
+              "评估情况",
+              "联系兽医",
+              "遵循兽医指导",
+              "准备好宠物的信息"
+            ],
+            "first_aid_procedures": {
+              "bleeding": ["按压止血", "抬高伤口", "使用止血粉"],
+              "choking": ["海姆立克急救法"],
+              "poisoning": ["联系兽医", "保留包装", "不要诱导呕吐"],
+              "fracture": ["固定伤肢", "避免移动", "尽快就医"]
+            }
+          },
+          "importance": "及时正确的急救可以挽救宠物生命"
+        },
+        {
+          "id": "health_nutrition",
+          "title": "营养饮食指南",
+          "content": {
+            "dogs": {
+              "protein_needs": "20-30%",
+              "fat_needs": "10-15%",
+              "carbohydrates": "适量（易消化）",
+              "special_diets": ["幼犬", "成犬", "老年犬", "减肥", "过敏", "泌尿健康", "关节健康", "肠胃敏感"],
+              "feeding_tips": ["定时定量", "保持新鲜饮水", "避免人类食物", "控制零食"]
+            },
+            "cats": {
+              "protein_needs": "26-30%",
+              "fat_needs": "9-15%",
+              "obligate_carnivore": true,
+              "special_diets": ["幼猫", "成猫", "老年猫", "泌尿健康", "减肥", "肠胃敏感", "肾脏护理"],
+              "feeding_tips": ["分多次喂食", "保持新鲜饮水", "必须吃肉", "控制零食"]
+            },
+            "food_types": {
+              "dry_food": "方便，牙齿健康，保质期长",
+              "wet_food": "水分充足，口感好，适合泌尿问题",
+              "raw_food": "自然饮食，需要均衡搭配",
+              "home_cooked": "可控制成分，需要专业配方"
+            },
+            "avoid_foods": {
+              "dogs": ["巧克力", "葡萄", "洋葱", "大蒜", "木糖醇", "酒精", "夏威夷果", "牛油果", "咖啡"],
+              "cats": ["巧克力", "葡萄", "洋葱", "大蒜", "肝脏过量", "生鱼", "对乙酰氨基酚", "百合"]
+            },
+            "feeding_guide": {
+              "puppy/kitten": ["少量多餐（3-4次/天）", "高蛋白", "易消化"],
+              "adult": ["定时定量（1-2次/天）", "控制热量"],
+              "senior": ["易消化", "控制热量", "补充关节营养"]
+            }
+          },
+          "importance": "正确的营养是宠物健康的基石"
+        },
+        {
+          "id": "health_skin",
+          "title": "皮肤健康",
+          "content": {
+            "common_issues": ["过敏性皮炎", "真菌感染", "细菌感染", "寄生虫感染", "脂溢性皮炎", "湿疹", "毛囊炎"],
+            "symptoms": ["瘙痒", "掉毛", "皮肤红肿", "皮屑", "异味", "结痂", "丘疹", "水疱"],
+            "causes": ["食物过敏", "环境过敏", "寄生虫", "细菌", "真菌", "激素问题", "遗传"],
+            "prevention": [
+              "定期梳毛",
+              "定期洗澡（适当频率）",
+              "保持环境清洁",
+              "均衡饮食",
+              "避免过敏原",
+              "补充Omega-3"
+            ],
+            "treatment": ["外用药物", "口服药物", "药浴", "饮食调整", "环境控制", "抗生素", "抗真菌药"]
+          },
+          "importance": "皮肤问题很常见，及时处理可以避免严重后果"
+        },
+        {
+          "id": "health_joint",
+          "title": "关节健康",
+          "content": {
+            "common_issues": ["髋关节发育不良", "肘关节发育不良", "髌骨脱位", "关节炎", "椎间盘问题", "十字韧带断裂"],
+            "at_risk_breeds": {
+              "dogs": ["大型犬", "金毛", "拉布拉多", "德国牧羊犬", "柯基", "腊肠犬"],
+              "cats": ["超重猫", "老年猫", "曼岛猫"]
+            },
+            "symptoms": ["活动减少", "起身困难", "跛行", "跳跃困难", "关节肿胀", "疼痛反应", "步态异常"],
+            "prevention": [
+              "控制体重",
+              "适当运动",
+              "避免过度运动（幼犬）",
+              "补充关节营养",
+              "防滑地面",
+              "定期检查"
+            ],
+            "treatments": ["药物治疗", "物理治疗", "手术治疗", "营养补充", "针灸"],
+            "supplements": ["葡萄糖胺", "软骨素", "Omega-3", "MSM"]
+          },
+          "importance": "关节问题影响宠物的生活质量，早预防早治疗"
+        },
+        {
+          "id": "health_obesity",
+          "title": "肥胖问题",
+          "content": {
+            "causes": ["过量喂食", "缺乏运动", "绝育后代谢变化", "品种因素", "年龄增长"],
+            "health_risk": ["糖尿病", "心脏病", "关节问题", "呼吸问题", "缩短寿命", "高血压"],
+            "signs": ["摸不到肋骨", "腹部下垂", "活动减少", "嗜睡", "喘气"],
+            "prevention": ["控制食量", "定时喂食", "规律运动", "健康零食", "定期称重"],
+            "weight_loss": ["兽医指导", "低脂饮食", "逐渐减重", "增加运动", "监测进度"]
+          },
+          "importance": "肥胖是许多疾病的根源，保持健康体重至关重要"
+        },
+        {
+          "id": "health_infectious",
+          "title": "传染病预防",
+          "content": {
+            "dogs": {
+              "distemper": {"symptoms": ["发烧", "咳嗽", "流涕", "呕吐", "抽搐"], "transmission": "飞沫/接触", "prevention": "疫苗"},
+              "parvovirus": {"symptoms": ["剧烈呕吐", "血便", "脱水", "发烧"], "transmission": "粪便/接触", "prevention": "疫苗"},
+              "adenovirus": {"symptoms": ["发烧", "咳嗽", "肝炎"], "transmission": "接触/飞沫", "prevention": "疫苗"},
+              "rabies": {"symptoms": ["行为异常", "攻击性", "吞咽困难"], "transmission": "咬伤", "prevention": "疫苗"}
+            },
+            "cats": {
+              "panleukopenia": {"symptoms": ["发烧", "呕吐", "腹泻", "白细胞减少"], "transmission": "接触/粪便", "prevention": "疫苗"},
+              "herpesvirus": {"symptoms": ["打喷嚏", "流涕", "结膜炎"], "transmission": "飞沫/接触", "prevention": "疫苗"},
+              "calicivirus": {"symptoms": ["口腔溃疡", "打喷嚏", "发烧"], "transmission": "接触/飞沫", "prevention": "疫苗"},
+              "leukemia": {"symptoms": ["体重下降", "贫血", "感染"], "transmission": "咬伤/亲密接触", "prevention": "疫苗"}
+            },
+            "precautions": ["按时接种", "避免接触病犬", "定期消毒", "新宠隔离"]
+          },
+          "importance": "传染病危害极大，预防是关键"
+        },
+        {
+          "id": "health_kidney",
+          "title": "肾脏健康",
+          "content": {
+            "common_issues": ["慢性肾病", "急性肾损伤", "肾结石", "感染"],
+            "risk_factors": ["老年", "肥胖", "脱水", "毒素摄入", "遗传"],
+            "symptoms": ["多饮多尿", "体重下降", "食欲减退", "呕吐", "口臭", "贫血"],
+            "prevention": ["充足饮水", "定期检查", "避免毒素", "健康饮食", "控制体重"],
+            "management": ["处方粮", "定期监测", "药物治疗", "补充水分"]
+          },
+          "importance": "肾脏疾病是老年宠物的常见问题，早期发现至关重要"
+        },
+        {
+          "id": "health_heart",
+          "title": "心脏健康",
+          "content": {
+            "common_issues": {"dogs": ["心肌病", "瓣膜病", "心丝虫"], "cats": ["心肌病（HCM）", "心丝虫"]},
+            "risk_factors": ["肥胖", "缺乏运动", "遗传", "年龄"],
+            "symptoms": ["咳嗽", "呼吸困难", "疲劳", "晕厥", "腹部积水"],
+            "prevention": ["控制体重", "规律运动", "定期检查", "心丝虫预防"],
+            "management": ["药物治疗", "饮食调整", "限制运动", "定期监测"]
+          },
+          "importance": "心脏疾病可能危及生命，早期诊断和管理很重要"
+        },
+        {
+          "id": "health_eyes",
+          "title": "眼部健康",
+          "content": {
+            "common_issues": ["结膜炎", "角膜炎", "白内障", "青光眼", "干眼症", "第三眼睑突出"],
+            "symptoms": ["红肿", "分泌物", "眯眼", "流泪", "视力下降", "角膜混浊"],
+            "prevention": ["定期清洁", "避免外伤", "检查异物", "定期体检"],
+            "care_tips": ["使用专用清洁液", "不要用人用药物", "及时就医"]
+          },
+          "importance": "眼部问题可能影响视力，及时治疗很重要"
+        }
+      ]
+    },
+    "pet_care": {
+      "name": "日常护理",
+      "description": "宠物日常护理知识",
+      "entries": [
+        {
+          "id": "care_grooming",
+          "title": "美容护理",
+          "content": {
+            "brushing": {
+              "frequency": {
+                "短毛犬/猫": "每周1-2次",
+                "中长毛犬/猫": "每周3-4次",
+                "长毛犬/猫": "每天"
+              },
+              "benefits": ["减少掉毛", "促进血液循环", "检查皮肤健康", "加强bonding", "减少毛发球"]
+            },
+            "bathing": {
+              "frequency": "每4-6周一次，根据活动量调整",
+              "tips": ["使用宠物专用洗发水", "彻底冲洗", "吹干毛发", "避免耳朵进水", "洗澡前梳理"]
+            },
+            "nails": {
+              "frequency": "每2-4周修剪",
+              "tips": ["避免剪到血线", "使用专用指甲剪", "准备止血粉", "定期打磨"]
+            },
+            "ears": {
+              "frequency": "每周检查清洁",
+              "tips": ["使用专用清洁液", "不要深入耳道", "避免棉签", "检查异味"]
+            },
+            "eyes": {
+              "frequency": "每天检查",
+              "tips": ["清洁眼角分泌物", "观察异常", "使用专用清洁液"]
+            },
+            "anal_glands": {
+              "frequency": "每月检查",
+              "tips": ["观察蹭屁股行为", "专业挤腺", "注意饮食"]
+            }
+          }
+        },
+        {
+          "id": "care_exercise",
+          "title": "运动锻炼",
+          "content": {
+            "dogs": {
+              "daily_walks": {
+                "小型犬": "20-30分钟/次，每天2次",
+                "中型犬": "30-45分钟/次，每天2次",
+                "大型犬": "60分钟+/次，每天2次"
+              },
+              "activities": ["散步", "跑步", "游泳", "玩球", "敏捷训练", "嗅闻游戏", "拔河"]
+            },
+            "cats": {
+              "daily_play": ["10-15分钟/次", "每天3-4次"],
+              "toys": ["羽毛棒", "激光笔", "猫抓板", "益智玩具", "爬架", "隧道", "逗猫棒"]
+            },
+            "benefits": ["控制体重", "心理健康", "加强bonding", "行为管理", "促进消化"],
+            "safety": ["避免极端天气", "适当休息", "携带饮水", "避免过度运动", "使用牵引"]
+          }
+        },
+        {
+          "id": "care_housing",
+          "title": "居住环境",
+          "content": {
+            "indoor": {
+              "space": "足够活动空间",
+              "safety": ["电线保护", "有毒植物", "危险物品", "窗户防护", "家具固定"],
+              "climate": ["适宜温度（18-26°C）", "避免直吹风", "湿度控制"]
+            },
+            "outdoor": {
+              "fencing": "安全围栏（至少6英尺）",
+              "shelter": "遮阳避雨",
+              "supervision": "避免独自外出",
+              "safety": ["防虫措施", "避免危险植物", "安全出口"]
+            },
+            "bedding": ["舒适", "清洁", "定期更换", "尺寸合适", "材质安全"],
+            "litter_box": {
+              "cats": ["数量（猫数+1）", "位置安静", "定期清理（每日）", "合适的猫砂", "足够大"]
+            },
+            "cleaning": ["定期消毒", "通风换气", "去除异味"]
+          }
+        },
+        {
+          "id": "care_travel",
+          "title": "出行指南",
+          "content": {
+            "car_travel": ["安全固定（安全带/航空箱）", "通风", "定时休息（每2小时）", "携带饮水", "避免前座"],
+            "air_travel": ["航空公司规定", "宠物箱（符合IATA标准）", "健康证明", "镇静药需兽医指导", "提前准备"],
+            "preparation": ["熟悉运输箱", "不要空腹", "携带必需品", "联系方式", "疫苗证明"],
+            "safety": ["避免前座", "不要伸出窗外", "冬季保暖", "夏季防暑", "停车休息"]
+          }
+        },
+        {
+          "id": "care_teething",
+          "title": "换牙期护理",
+          "content": {
+            "dogs": {
+              "age": "3-6个月",
+              "signs": ["啃咬", "流口水", "食欲下降", "牙龈红肿", "易怒"],
+              "care": ["提供咬胶", "冷冻玩具", "软食", "口腔检查", "避免贵重物品"]
+            },
+            "cats": {
+              "age": "3-6个月",
+              "signs": ["啃咬", "流口水", "食欲下降", "牙龈红肿"],
+              "care": ["提供磨牙玩具", "软食", "口腔检查", "提供抓板"]
+            }
+          }
+        },
+        {
+          "id": "care_seasonal",
+          "title": "季节护理",
+          "content": {
+            "summer": ["防暑降温", "充足饮水", "避免中午外出", "修剪毛发", "防晒（尤其是无毛猫）", "车内留宠"],
+            "winter": ["保暖", "缩短外出时间", "脚部护理（清洁擦干）", "补充营养", "室内活动"],
+            "spring": ["驱虫", "花粉过敏", "换毛期护理", "疫苗接种"],
+            "autumn": ["驱虫", "保暖准备", "皮肤检查", "储存过冬用品"]
+          }
+        },
+        {
+          "id": "care_puppy_kitten",
+          "title": "幼宠护理",
+          "content": {
+            "first_week": ["适应环境", "定时喂食", "排便训练", "健康检查"],
+            "socialization": ["3-14周关键期", "接触不同的人、动物和环境", "正向体验"],
+            "training": ["基础命令", "如厕训练", "行为引导"],
+            "health": ["疫苗接种", "驱虫", "体重监测", "饮食管理"]
+          }
+        },
+        {
+          "id": "care_feeding",
+          "title": "喂食指南",
+          "content": {
+            "portion_control": ["按体重和年龄喂食", "参考包装说明", "避免过量"],
+            "feeding_schedule": {
+              "puppy/kitten": "3-4次/天",
+              "adult": "1-2次/天",
+              "senior": "2次/天（少量）"
+            },
+            "water": ["新鲜清洁", "随时供应", "多放几个水盆"],
+            "treats": ["不超过每日热量的10%", "健康零食", "训练奖励"],
+            "table_scraps": ["避免人类食物", "有毒食物绝对禁止", "特殊情况咨询兽医"]
+          }
+        }
+      ]
+    },
+    "pet_training": {
+      "name": "行为训练",
+      "description": "宠物训练和行为矫正",
+      "entries": [
+        {
+          "id": "training_basic",
+          "title": "基础训练",
+          "content": {
+            "commands": ["坐下", "趴下", "等待", "过来", "不", "随行", "握手", "躺下", "打滚", "安静"],
+            "methods": ["正向强化", "点击器训练", "一致性", "耐心", "短时间多次"],
+            "tips": ["短时间多次（5-10分钟）", "奖励及时", "保持耐心", "避免惩罚", "环境安静"]
+          }
+        },
+        {
+          "id": "training_housetrain",
+          "title": "如厕训练",
+          "content": {
+            "schedule": ["定时", "饭后15-30分钟", "睡醒后", "玩耍后", "睡前"],
+            "methods": ["定点引导", "奖励成功", "避免惩罚", "及时清理", "使用尿垫过渡"],
+            "accidents": ["及时清理", "消除气味（专用清洁剂）", "不要打骂", "增加频率"]
+          }
+        },
+        {
+          "id": "training_behavior",
+          "title": "行为问题",
+          "content": {
+            "barking": {
+              "causes": ["无聊", "焦虑", "警觉", "求关注", "领地"],
+              "solutions": ["找出原因", "分散注意力", "奖励安静", "避免强化", "脱敏训练"]
+            },
+            "chewing": {
+              "causes": ["换牙", "无聊", "焦虑", "探索"],
+              "solutions": ["提供玩具", "阻止不良行为", "替代物品", "增加运动", "苦味喷雾"]
+            },
+            "aggression": {
+              "causes": ["恐惧", "领地", "保护资源", "疼痛", "社会化不足"],
+              "solutions": ["识别信号", "专业咨询", "正向训练", "避免惩罚", "管理环境"]
+            },
+            "separation_anxiety": {
+              "signs": ["破坏物品", "过度吠叫", "排泄问题", "过度舔舐"],
+              "solutions": ["逐渐适应", "提供安全空间", "安抚玩具", "行为训练", "药物辅助"]
+            },
+            "scratching_furniture": {
+              "causes": ["磨爪", "标记", "焦虑", "玩耍"],
+              "solutions": ["提供猫抓板", "定期剪指甲", "双爪贴", "正向引导", "保护家具"]
+            },
+            "jumping_up": {
+              "causes": ["兴奋", "求关注"],
+              "solutions": ["忽略行为", "坐下替代", "奖励安静", "一致性"]
+            },
+            "begging": {
+              "causes": ["得到过食物奖励"],
+              "solutions": ["忽略行为", "定时喂食", "餐桌隔离", "奖励离开"]
+            }
+          }
+        },
+        {
+          "id": "training_socialization",
+          "title": "社会化训练",
+          "content": {
+            "critical_period": {
+              "dogs": "3-14周",
+              "cats": "2-7周"
+            },
+            "exposure": ["人（不同年龄、性别、外貌）", "其他动物", "环境（声音、场景、交通工具）", "不同表面"],
+            "methods": ["正向体验", "避免强迫", "逐渐增加难度", "奖励勇敢行为"],
+            "benefits": ["减少恐惧", "提高自信", "友好相处", "减少行为问题"]
+          }
+        },
+        {
+          "id": "training_puppy",
+          "title": "幼犬训练",
+          "content": {
+            "week_by_week": {
+              "8周": "适应新家，基础社会化，建立信任",
+              "12周": "基础命令（坐、等、来），如厕训练，社交扩展",
+              "16周": "进阶训练，社交扩展，基本礼仪",
+              "6个月": "巩固训练，青春期管理，服从训练"
+            },
+            "key_points": ["一致性", "正向强化", "耐心", "社交", "避免惩罚"]
+          }
+        },
+        {
+          "id": "training_cat",
+          "title": "猫咪训练",
+          "content": {
+            "litter_training": ["选择合适猫砂", "放置位置", "引导使用", "奖励成功"],
+            "basic_commands": ["过来", "坐下", "击掌", "不要"],
+            "tricks": ["跳圈", "取物", "high five", "滚"],
+            "methods": ["正向强化", "短时间", "耐心", "了解猫的个性"]
+          }
+        },
+        {
+          "id": "training_leash",
+          "title": "牵引训练",
+          "content": {
+            "dogs": {
+              "steps": ["适应项圈/背带", "室内训练", "室外训练", "纠正拉扯"],
+              "tips": ["使用正面强化", "停止前进等待", "奖励松弛牵引"]
+            },
+            "cats": {
+              "steps": ["适应背带", "室内适应", "室外短途", "安全优先"],
+              "tips": ["选择合适背带", "耐心引导", "避免强迫"]
+            }
+          }
+        }
+      ]
+    },
+    "pet_aging": {
+      "name": "老年护理",
+      "description": "老年宠物护理知识",
+      "entries": [
+        {
+          "id": "aging_signs",
+          "title": "衰老迹象",
+          "content": {
+            "common_signs": [
+              "精力下降",
+              "视力听力减退",
+              "关节僵硬",
+              "食欲变化",
+              "睡眠模式改变",
+              "体重变化",
+              "反应变慢",
+              "毛发变灰变稀疏",
+              "牙齿问题",
+              "如厕控制减弱"
+            ],
+            "age_markers": {
+              "dogs": {
+                "small": "7岁开始进入老年",
+                "medium": "6岁开始进入老年",
+                "large": "5岁开始进入老年"
+              },
+              "cats": "8-10岁开始进入老年"
+            }
+          }
+        },
+        {
+          "id": "aging_care",
+          "title": "老年护理要点",
+          "content": {
+            "health_care": ["定期体检（每6个月）", "慢性病管理", "药物管理", "口腔护理", "寄生虫预防"],
+            "nutrition": ["老年专用粮", "控制体重", "补充关节营养", "易消化食物", "充足饮水"],
+            "comfort": ["温暖环境", "防滑地面", "舒适床品", "便于访问的资源", "安静空间"],
+            "exercise": ["温和运动", "游泳", "短距离散步", "避免跳跃", "室内游戏"]
+          }
+        },
+        {
+          "id": "aging_health",
+          "title": "常见老年疾病",
+          "content": {
+            "dogs": ["关节炎", "白内障", "心脏病", "认知障碍（犬痴呆）", "肿瘤", "肾脏疾病", "牙齿疾病"],
+            "cats": ["肾脏疾病", "甲状腺问题", "糖尿病", "关节问题", "心脏病", "口腔疾病", "肥胖"],
+            "preventive": ["定期检查", "早期干预", "良好护理", "健康饮食", "适度运动"]
+          }
+        },
+        {
+          "id": "aging_cognition",
+          "title": "认知障碍护理",
+          "content": {
+            "signs": ["迷路", "夜间不安", "重复行为", "社交退缩", "学习能力下降", "如厕问题"],
+            "care": ["保持规律", "提供智力刺激", "安全环境", "兽医咨询", "药物治疗", "营养补充"]
+          }
+        },
+        {
+          "id": "aging_endoflife",
+          "title": "临终关怀",
+          "content": {
+            "signs": ["拒绝进食", "无法站立", "呼吸困难", "持续疼痛", "大小便失禁"],
+            "care": ["舒适环境", "疼痛管理", "营养支持", "陪伴", "兽医咨询", "安乐死考虑"]
+          }
+        }
+      ]
+    },
+    "pet_other": {
+      "name": "其他宠物",
+      "description": "除猫狗外的其他宠物护理",
+      "entries": [
+        {
+          "id": "other_bird",
+          "title": "鸟类护理",
+          "content": {
+            "cage": ["足够空间（水平空间重要）", "安全材料（无铅）", "合适间距", "清洁"],
+            "diet": ["种子（适量）", "新鲜蔬果", "颗粒饲料", "清洁饮水", "避免牛油果/巧克力"],
+            "social": ["互动时间", "玩具（多种）", "避免孤独", "训练"],
+            "health": ["羽毛检查", "指甲修剪", "喙部护理", "定期体检", "体重监测"],
+            "safety": ["避免有毒植物", "安全飞行空间", "避免不粘锅中毒", "温度控制"]
+          }
+        },
+        {
+          "id": "other_rabbit",
+          "title": "兔子护理",
+          "content": {
+            "housing": ["宽敞空间（至少4倍体型）", "兔厕所", "柔软垫料", "通风"],
+            "diet": ["无限干草", "新鲜蔬菜", "少量兔粮", "清洁饮水", "避免淀粉"],
+            "behavior": ["社交需求", "啃咬需求（提供木头）", "跳跃空间", "沙浴"],
+            "health": ["指甲修剪", "牙齿检查（持续生长）", "定期体检", "绝育（推荐）"]
+          }
+        },
+        {
+          "id": "other_hamster",
+          "title": "仓鼠护理",
+          "content": {
+            "cage": ["通风良好", "合适大小（至少450平方英寸）", "安全材料（无油漆）", "分层"],
+            "bedding": ["无尘垫料", "足够深度（6-8英寸）", "定期更换"],
+            "diet": ["仓鼠粮", "新鲜蔬果（适量）", "清洁饮水", "避免柑橘/洋葱"],
+            "behavior": ["夜间活动", "跑轮（直径至少20cm）", "藏食行为", "独居"],
+            "health": ["牙齿检查", "指甲修剪", "避免湿尾症", "温度控制（18-22°C）"]
+          }
+        },
+        {
+          "id": "other_fish",
+          "title": "观赏鱼护理",
+          "content": {
+            "tank": ["合适大小（1升水养1cm鱼）", "过滤系统", "加热棒（热带鱼）", "照明"],
+            "water": ["定期换水（每周20-30%）", "水质检测（氨/亚硝酸盐/硝酸盐）", "温度控制"],
+            "diet": ["适量喂食（2-3分钟吃完）", "多样化食物", "避免过量"],
+            "health": ["观察行为", "疾病预防", "新进隔离", "适当混养"]
+          }
+        },
+        {
+          "id": "other_guinea_pig",
+          "title": "豚鼠护理",
+          "content": {
+            "housing": ["宽敞空间", "多层", "柔软垫料", "通风"],
+            "diet": ["无限干草", "新鲜蔬菜", "维生素C补充", "清洁饮水"],
+            "behavior": ["社交（群居）", "声音交流", "啃咬需求"],
+            "health": ["指甲修剪", "牙齿检查", "定期体检", "VC补充"]
+          }
+        },
+        {
+          "id": "other_chinchilla",
+          "title": "龙猫护理",
+          "content": {
+            "housing": ["多层笼子", "凉爽环境（15-20°C）", "防尘"],
+            "diet": ["龙猫粮", "干草", "少量蔬果", "清洁饮水"],
+            "behavior": ["夜间活动", "跳跃", "沙浴（专用浴沙）"],
+            "health": ["毛发护理", "牙齿检查", "避免高温潮湿"]
+          }
+        },
+        {
+          "id": "other_turtle",
+          "title": "龟类护理",
+          "content": {
+            "housing": ["水陆两栖环境", "晒台", "UVB灯", "加热棒"],
+            "diet": ["龟粮", "新鲜蔬菜", "少量蛋白质", "钙补充"],
+            "behavior": ["晒太阳", "游泳", "冬眠（部分品种）"],
+            "health": ["水质维护", "定期体检", "指甲修剪"]
+          }
+        },
+        {
+          "id": "other_reptile",
+          "title": "爬行动物护理",
+          "content": {
+            "housing": ["合适大小的饲养箱", "温度梯度", "UVB灯", "湿度控制"],
+            "diet": ["昆虫/蔬菜/肉类（根据品种）", "钙补充", "维生素D3"],
+            "behavior": ["晒太阳", "躲藏", "蜕皮"],
+            "health": ["温度监测", "定期体检", "寄生虫预防"]
+          }
+        }
+      ]
+    },
+    "pet_supplies": {
+      "name": "宠物用品",
+      "description": "宠物用品选购和使用指南",
+      "entries": [
+        {
+          "id": "supplies_food",
+          "title": "食品用品",
+          "content": {
+            "food_types": ["干粮", "湿粮", "半湿粮", "生食", "处方粮"],
+            "selection_tips": ["根据年龄/体重/健康状况选择", "查看成分表", "避免有害添加剂"],
+            "storage": ["密封保存", "阴凉干燥", "保质期内使用"],
+            "feeding_accessories": ["食盆（不锈钢/陶瓷）", "水盆（自动饮水器）", "慢食碗"]
+          }
+        },
+        {
+          "id": "supplies_housing",
+          "title": "居住用品",
+          "content": {
+            "bedding": ["狗窝/猫窝", "垫子", "毯子", "保暖床"],
+            "cages": ["狗笼（训练用）", "猫笼（运输用）", "宠物箱"],
+            "litter": ["猫砂（膨润土/水晶/豆腐砂）", "猫砂盆", "猫砂铲", "除臭剂"],
+            "furniture": ["猫爬架", "猫抓板", "宠物沙发", "围栏"]
+          }
+        },
+        {
+          "id": "supplies_grooming",
+          "title": "美容用品",
+          "content": {
+            "brushes": ["梳子（不同类型）", "脱毛梳", "针梳", "排梳"],
+            "bathing": ["宠物专用洗发水", "护毛素", "洗澡刷", "吹风机"],
+            "nails": ["指甲剪（专用）", "磨甲器", "止血粉"],
+            "other": ["耳清洁液", "眼清洁液", "牙齿清洁用品"]
+          }
+        },
+        {
+          "id": "supplies_toys",
+          "title": "玩具用品",
+          "content": {
+            "dogs": ["球类", "咬胶", "毛绒玩具", "益智玩具", "飞盘", "拔河玩具"],
+            "cats": ["逗猫棒", "激光笔", "猫薄荷玩具", "球", "隧道", "猫抓板"],
+            "selection_tips": ["根据年龄/体型/性格选择", "安全第一", "定期更换"]
+          }
+        },
+        {
+          "id": "supplies_travel",
+          "title": "出行用品",
+          "content": {
+            "car": ["安全带", "车载宠物箱", "防滑垫", "遮阳帘"],
+            "air": ["航空箱（IATA标准）", "健康证明", "饮水器"],
+            "walking": ["项圈", "胸背带", "牵引绳", "拾便袋", "折叠水碗"]
+          }
+        }
+      ]
+    },
+    "pet_insurance": {
+      "name": "宠物保险",
+      "description": "宠物保险相关知识",
+      "entries": [
+        {
+          "id": "insurance_basics",
+          "title": "保险基础",
+          "content": {
+            "what_covers": ["意外事故", "疾病治疗", "手术费用", "处方药", "紧急护理"],
+            "what_excludes": ["既往病史", "美容护理", "常规体检", "疫苗", "先天性疾病"],
+            "types": ["意外保险", "综合保险", "终身保险"]
+          }
+        },
+        {
+          "id": "insurance_choose",
+          "title": "如何选择",
+          "content": {
+            "factors": ["覆盖范围", "免赔额", "报销比例", "年度限额", "等待期", "年龄限制"],
+            "tips": ["越早买越好", "阅读条款", "比较多家", "考虑宠物品种"]
+          }
+        },
+        {
+          "id": "insurance_claim",
+          "title": "理赔流程",
+          "content": {
+            "steps": ["及时报案", "保留凭证", "提交申请", "等待审核", "领取赔款"],
+            "tips": ["了解流程", "及时提交", "保留所有单据"]
+          }
+        }
+      ]
+    },
+    "pet_emergency": {
+      "name": "急救知识",
+      "description": "宠物急救技能",
+      "entries": [
+        {
+          "id": "emergency_bleeding",
+          "title": "止血处理",
+          "content": {
+            "direct_pressure": ["用干净纱布按压伤口", "持续5-10分钟", "抬高伤口（高于心脏）"],
+            "tourniquet": ["仅用于严重出血", "靠近伤口处捆扎", "每15分钟放松一次"],
+            "tips": ["不要移除嵌入物体", "使用止血粉", "尽快就医"]
+          }
+        },
+        {
+          "id": "emergency_choking",
+          "title": "窒息处理",
+          "content": {
+            "signs": ["呼吸困难", "爪子抓嘴", "发出窒息声"],
+            "dog_back_blows": ["站立姿势", "双手环抱腹部", "向上向后按压"],
+            "dog_abdominal_thrusts": ["躺下姿势", "双手交叉按压腹部"],
+            "cat_maneuver": ["头部朝下", "轻拍背部", "腹部按压"],
+            "tips": ["检查口腔", "不要盲目伸手", "尽快就医"]
+          }
+        },
+        {
+          "id": "emergency_poison",
+          "title": "中毒处理",
+          "content": {
+            "signs": ["呕吐", "腹泻", "抽搐", "昏迷", "流口水"],
+            "steps": ["联系兽医", "保留包装", "不要诱导呕吐", "记录症状"],
+            "common_poisons": {
+              "dogs": ["巧克力", "葡萄", "木糖醇", "洋葱", "人类药物"],
+              "cats": ["对乙酰氨基酚", "百合", "精油", "巧克力"]
+            },
+            "tips": ["不要自行处理", "带宠物和毒物包装就医"]
+          }
+        },
+        {
+          "id": "emergency_fracture",
+          "title": "骨折处理",
+          "content": {
+            "signs": ["跛行", "肿胀", "变形", "疼痛反应"],
+            "steps": ["避免移动", "固定伤肢", "使用夹板", "尽快就医"],
+            "tips": ["不要拉直断骨", "使用临时固定物", "保持宠物安静"]
+          }
+        },
+        {
+          "id": "emergency_heatstroke",
+          "title": "中暑处理",
+          "content": {
+            "signs": ["体温升高", "喘气", "口水粘稠", "虚弱"],
+            "steps": ["转移阴凉处", "凉水降温（避免冰水）", "扇风", "提供饮水"],
+            "tips": ["不要用退烧药", "尽快就医", "预防为主"]
+          }
+        }
+      ]
+    }
+  }
+}
