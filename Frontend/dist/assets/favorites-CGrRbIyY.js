@@ -1,0 +1,1 @@
+import{v as t}from"./index-DxamY9aD.js";const o={getFavorites(){return t.get("/favorites")},addFavorite(e){return t.post("/favorites",e)},deleteFavorite(e){return t.delete(`/favorites/${e}`)}};export{o as f};

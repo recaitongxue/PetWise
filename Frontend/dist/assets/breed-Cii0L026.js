@@ -1,0 +1,1 @@
+import{v as e}from"./index-DxamY9aD.js";const n={getBreedInfo(r){return e.get(`/breed/${encodeURIComponent(r)}`)},getAllBreeds(){return e.get("/classes")},getPopularBreeds(){return e.get("/breeds/popular")}};export{n as b};
