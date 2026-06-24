@@ -80,6 +80,12 @@ export const adminAPI = {
   setDefaultModel(id) {
     return axios.post(`/admin/models/default/${id}`)
   },
+  getDefaultEmbeddingModel() {
+    return axios.get('/admin/models/embedding/default')
+  },
+  setDefaultEmbeddingModel(id) {
+    return axios.post(`/admin/models/embedding/default/${id}`)
+  },
 
   // ==================== 知识库管理 ====================
   getKnowledge(params) {
@@ -97,6 +103,11 @@ export const adminAPI = {
   getKnowledgeCategories() {
     return axios.get('/admin/knowledge/categories')
   },
+  uploadKnowledgeFile(formData) {
+    return axios.post('/admin/knowledge/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
 
   // ==================== 难样本管理 ====================
   getHardExamples(params) {
@@ -109,18 +120,10 @@ export const adminAPI = {
     return axios.delete(`/admin/samples/hard/${id}`)
   },
   exportHardExamples(data) {
-    return axios.post('/admin/samples/hard/export', data)
+    return axios.post('/admin/samples/hard/export', data, { responseType: 'blob' })
   },
   getHardExamplesStats() {
     return axios.get('/admin/samples/hard/stats')
-  },
-
-  // ==================== 纠错管理 ====================
-  getCorrections(params) {
-    return axios.get('/admin/corrections', { params })
-  },
-  updateCorrection(id, data) {
-    return axios.put(`/admin/corrections/${id}`, data)
   },
 
   // ==================== 模型版本管理 ====================

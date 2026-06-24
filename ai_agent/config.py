@@ -16,6 +16,10 @@ class Config:
     SILICONFLOW_API_URL: str = os.getenv("SILICONFLOW_API_URL", "https://api.siliconflow.cn/v1")
     SILICONFLOW_MODEL: str = os.getenv("SILICONFLOW_MODEL", "deepseek-ai/DeepSeek-V3")
     
+    # Embedding Configuration (default to Ollama local)
+    EMBEDDING_API_URL: str = os.getenv("EMBEDDING_API_URL", "http://localhost:11434")
+    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "qwen3-embedding:0.6b")
+    
     # Knowledge Base Configuration
     KNOWLEDGE_BASE_DIR: str = os.path.join(os.path.dirname(__file__), "knowledge_base")
     KNOWLEDGE_BASE_FILE: str = os.path.join(KNOWLEDGE_BASE_DIR, "pet_knowledge.json")

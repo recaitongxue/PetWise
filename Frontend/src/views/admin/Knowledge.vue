@@ -4,12 +4,74 @@
       <div class="page-header">
         <div class="header-title">
           <h1>📚 知识库管理</h1>
-          <p class="subtitle">管理和维护宠物知识条目</p>
+          <p class="subtitle">管理和维护宠物知识条目，支持文件导入构建RAG知识库</p>
         </div>
       </div>
         
+        <div class="upload-section">
+          <h3>📤 文件导入（RAG知识库搭建）</h3>
+          <el-form :model="uploadForm" label-width="100px" class="upload-form">
+            <el-form-item label="选择文件">
+              <el-upload
+                class="upload-demo"
+                action="/api/admin/knowledge/upload"
+                :on-success="handleUploadSuccess"
+                :on-error="handleUploadError"
+                :on-progress="handleUploadProgress"
+                :on-change="handleFileChange"
+                :before-upload="beforeUpload"
+                :file-list="fileList"
+                :auto-upload="false"
+                ref="uploadRef"
+              >
+                <el-button size="small" type="primary">选择文件</el-button>
+                <div slot="tip" class="el-upload__tip">
+                  支持上传 <strong>.md</strong>、<strong>.docx</strong>、<strong>.pdf</strong>、<strong>.txt</strong> 格式文件
+                </div>
+              </el-upload>
+            </el-form-item>
+            <el-form-item label="目标分类">
+              <el-select v-model="uploadForm.category" placeholder="选择分类" allow-create filterable>
+                <el-option label="喂养指南" value="feeding" />
+                <el-option label="健康护理" value="health" />
+                <el-option label="训练技巧" value="training" />
+                <el-option label="品种知识" value="breeds" />
+                <el-option label="常见问题" value="faq" />
+                <el-option label="其他" value="general" />
+              </el-select>
+            </el-form-item>
+            <el-form-item>
+              <el-button 
+                type="primary" 
+                @click="submitUpload" 
+                :loading="uploading"
+                :disabled="!fileList.length"
+              >
+                {{ uploading ? '导入中...' : '开始导入' }}
+              </el-button>
+              <el-button @click="clearFiles">清空文件</el-button>
+            </el-form-item>
+          </el-form>
+          
+          <div v-if="uploadProgress > 0 && uploadProgress < 100" class="upload-progress">
+            <el-progress :percentage="uploadProgress" :status="uploadProgressStatus" />
+          </div>
+          
+          <div v-if="uploadResult" class="upload-result" :class="uploadResult.success ? 'success' : 'error'">
+            <div class="result-icon">{{ uploadResult.success ? '✓' : '✗' }}</div>
+            <div class="result-content">
+              <div class="result-title">{{ uploadResult.success ? '导入成功' : '导入失败' }}</div>
+              <div class="result-message">{{ uploadResult.message }}</div>
+              <div v-if="uploadResult.success && uploadResult.imported" class="result-detail">
+                <span>成功导入 {{ uploadResult.imported }} 条知识</span>
+                <span v-if="uploadResult.skipped">，跳过 {{ uploadResult.skipped }} 条</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <div class="add-section">
-          <h3>添加知识条目</h3>
+          <h3>✏️ 添加知识条目</h3>
           <el-form :model="form" label-width="100px" class="knowledge-form">
             <el-form-item label="标题">
               <el-input v-model="form.title" placeholder="知识标题" />
@@ -43,7 +105,7 @@
         </div>
         
         <div class="filter-section">
-          <h3>知识列表</h3>
+          <h3>📋 知识列表</h3>
           <div class="filter-bar">
             <el-select v-model="categoryFilter" placeholder="筛选分类" clearable>
               <el-option label="全部" value="" />
@@ -136,7 +198,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElProgress } from 'element-plus'
 import AdminLayout from '@/components/AdminLayout.vue'
 import { adminAPI } from '@/api/admin'
 
@@ -149,12 +211,23 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 
+const uploadRef = ref(null)
+const fileList = ref([])
+const uploading = ref(false)
+const uploadProgress = ref(0)
+const uploadProgressStatus = ref('success')
+const uploadResult = ref(null)
+
 const form = reactive({
   title: '',
   category: 'general',
   content: '',
   tags: [],
   source: ''
+})
+
+const uploadForm = reactive({
+  category: 'general'
 })
 
 const editForm = reactive({ ...form })
@@ -281,6 +354,106 @@ const truncateContent = (content) => {
   return content.length > 200 ? content.substring(0, 200) + '...' : content
 }
 
+const beforeUpload = (file) => {
+  const allowedExtensions = ['.md', '.docx', '.doc', '.pdf', '.txt', '.json']
+  const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
+  
+  if (!allowedExtensions.includes(ext)) {
+    ElMessage.error(`不支持的文件格式: ${ext}，支持格式: ${allowedExtensions.join(', ')}`)
+    return false
+  }
+  
+  const maxSize = 10 * 1024 * 1024
+  if (file.size > maxSize) {
+    ElMessage.error('文件大小不能超过10MB')
+    return false
+  }
+  
+  return true
+}
+
+const handleFileChange = (file, uploadFileList) => {
+  fileList.value = uploadFileList
+}
+
+const handleUploadProgress = (event, file, fileList) => {
+  uploadProgress.value = Math.round((event.loaded / event.total) * 100)
+  uploadProgressStatus.value = 'success'
+}
+
+const handleUploadSuccess = (response, file, fileList) => {
+  uploading.value = false
+  uploadProgress.value = 100
+  
+  if (response.success) {
+    uploadResult.value = {
+      success: true,
+      message: response.message,
+      imported: response.imported,
+      skipped: response.skipped
+    }
+    ElMessage.success(`文件导入成功，共导入 ${response.imported} 条知识`)
+    getKnowledgeList()
+    clearFiles()
+  } else {
+    uploadResult.value = {
+      success: false,
+      message: response.error || response.message || '导入失败'
+    }
+    ElMessage.error('文件导入失败: ' + (response.error || '未知错误'))
+  }
+  
+  setTimeout(() => {
+    uploadResult.value = null
+    uploadProgress.value = 0
+  }, 5000)
+}
+
+const handleUploadError = (error, file, fileList) => {
+  uploading.value = false
+  uploadProgress.value = 0
+  uploadProgressStatus.value = 'exception'
+  
+  uploadResult.value = {
+    success: false,
+    message: error.message || '上传失败'
+  }
+  ElMessage.error('文件上传失败: ' + error.message)
+  
+  setTimeout(() => {
+    uploadResult.value = null
+  }, 5000)
+}
+
+const submitUpload = async () => {
+  if (!fileList.value.length) {
+    ElMessage.warning('请先选择文件')
+    return
+  }
+  
+  uploading.value = true
+  uploadProgress.value = 0
+  uploadResult.value = null
+  
+  const file = fileList.value[0]
+  const formData = new FormData()
+  formData.append('file', file.raw)
+  formData.append('category', uploadForm.category)
+  
+  try {
+    const response = await adminAPI.uploadKnowledgeFile(formData)
+    handleUploadSuccess(response, file, fileList.value)
+  } catch (error) {
+    handleUploadError(error, file, fileList.value)
+  }
+}
+
+const clearFiles = () => {
+  fileList.value = []
+  uploadProgress.value = 0
+  uploadResult.value = null
+}
+
 onMounted(() => {
   getKnowledgeList()
 })
@@ -308,6 +481,7 @@ onMounted(() => {
   font-size: 14px;
 }
 
+.upload-section,
 .add-section,
 .filter-section,
 .list-section {
@@ -318,12 +492,26 @@ onMounted(() => {
   margin-bottom: 25px;
 }
 
+.upload-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.upload-section h3,
 .add-section h3,
 .filter-section h3 {
   margin: 0 0 20px 0;
   font-size: 18px;
   font-weight: 600;
-  color: #2c3e50;
+}
+
+.upload-section h3 {
+  color: white;
+}
+
+.upload-form {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
 }
 
 .knowledge-form {
@@ -417,5 +605,84 @@ onMounted(() => {
   text-align: center;
   color: #999;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.upload-progress {
+  margin-top: 15px;
+}
+
+.upload-result {
+  margin-top: 15px;
+  padding: 15px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.upload-result.success {
+  background: #f0f9eb;
+  border: 1px solid #b7eb8f;
+}
+
+.upload-result.error {
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+}
+
+.result-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.upload-result.success .result-icon {
+  background: #b7eb8f;
+  color: #52c41a;
+}
+
+.upload-result.error .result-icon {
+  background: #ffccc7;
+  color: #ff4d4f;
+}
+
+.result-content {
+  flex: 1;
+}
+
+.result-title {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.upload-result.success .result-title {
+  color: #52c41a;
+}
+
+.upload-result.error .result-title {
+  color: #ff4d4f;
+}
+
+.result-message {
+  font-size: 14px;
+  color: #666;
+}
+
+.result-detail {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #888;
+}
+
+.el-upload__tip {
+  margin-top: 8px !important;
+  color: #666 !important;
 }
 </style>

@@ -12,6 +12,7 @@ class AIAgentClient:
     def __init__(self, base_url: str = "http://localhost:8000"):
         self.base_url = base_url
         self.default_model_config = None
+        self.default_embedding_config = None
     
     def _request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """Make HTTP request to AI Agent service"""
@@ -27,6 +28,11 @@ class AIAgentClient:
     def set_default_model_config(self, config: Dict[str, Any]):
         """Set the default model configuration from database"""
         self.default_model_config = config
+    
+    def set_default_embedding_config(self, config: Dict[str, Any]):
+        """Set the default embedding model configuration from database"""
+        self.default_embedding_config = config
+        self._update_ai_agent_embedding_config(config)
     
     def _get_chat_data(self, user_message: str, use_knowledge_base: bool, custom_prompt: Optional[str],
                        temperature: float, model: Optional[str], pet_context: Optional[Dict[str, Any]],
@@ -168,6 +174,14 @@ class AIAgentClient:
             data["category"] = category
         return self._request("POST", "/v1/knowledge/query", json=data)
     
+    def knowledge_query_all(self, category: Optional[str] = None,
+                            page: int = 1, per_page: int = 20) -> Dict[str, Any]:
+        """Get all knowledge entries with pagination"""
+        params = {"page": page, "per_page": per_page}
+        if category:
+            params["category"] = category
+        return self._request("GET", "/v1/knowledge/list", params=params)
+    
     def knowledge_stats(self) -> Dict[str, Any]:
         """Get knowledge base statistics"""
         return self._request("GET", "/v1/knowledge/stats")
@@ -184,3 +198,53 @@ class AIAgentClient:
     def get_knowledge_categories(self) -> Dict[str, Any]:
         """Get knowledge categories"""
         return self._request("GET", "/v1/knowledge/categories")
+    
+    def upload_knowledge_file(self, file, category: str = "general") -> Dict[str, Any]:
+        """
+        Upload knowledge file to AI Agent service
+        
+        Args:
+            file: File object from Flask request
+            category: Knowledge category
+            
+        Returns:
+            Upload result
+        """
+        try:
+            url = f"{self.base_url}/v1/knowledge/upload"
+            
+            files = {
+                'file': (file.filename, file.stream, file.content_type)
+            }
+            
+            data = {
+                'category': category
+            }
+            
+            response = requests.post(url, files=files, data=data, timeout=60)
+            response.raise_for_status()
+            return response.json()
+            
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": str(e)}
+    
+    def _update_ai_agent_embedding_config(self, config: Dict[str, Any]):
+        """Update AI Agent service with embedding model configuration"""
+        try:
+            url = f"{self.base_url}/v1/embedding/config"
+            data = {
+                "api_key": config.get("api_key"),
+                "base_url": config.get("base_url"),
+                "model_name": config.get("model_name"),
+                "embedding_dim": config.get("embedding_dim", 0)
+            }
+            response = requests.post(url, json=data, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to update AI Agent embedding config: {e}")
+            return {"success": False, "error": str(e)}
+
+
+# Global client instance
+ai_client = AIAgentClient()

@@ -2,54 +2,64 @@
   <AdminLayout>
     <div class="models-page">
       <div class="page-header">
-        <div class="header-title">
-          <h1>🤖 大模型管理</h1>
-          <p class="subtitle">管理和配置AI大模型</p>
-        </div>
+      <div class="header-title">
+        <h1>🤖 大模型管理</h1>
+        <p class="subtitle">管理和配置AI大模型与嵌入模型</p>
       </div>
+    </div>
         
-        <div class="add-section">
-          <h3>添加新模型</h3>
-          <el-form :model="form" label-width="120px" class="model-form">
-            <el-form-item label="模型名称">
-              <el-input v-model="form.name" placeholder="例如：GPT-4" />
-            </el-form-item>
-            <el-form-item label="提供商">
-              <el-select v-model="form.provider" placeholder="选择提供商">
-                <el-option label="OpenAI" value="openai" />
-                <el-option label="SiliconFlow" value="siliconflow" />
-                <el-option label="Anthropic" value="anthropic" />
-                <el-option label="本地部署" value="local" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="模型标识">
-              <el-input v-model="form.model_name" placeholder="例如：gpt-4" />
-            </el-form-item>
-            <el-form-item label="API地址">
-              <el-input v-model="form.base_url" placeholder="API Base URL（可选）" />
-            </el-form-item>
-            <el-form-item label="API密钥">
-              <el-input v-model="form.api_key" type="password" placeholder="API Key（可选）" show-password />
-            </el-form-item>
-            <el-form-item label="最大Token数">
-              <el-input-number v-model="form.max_tokens" :min="100" :max="100000" />
-            </el-form-item>
-            <el-form-item label="Temperature">
-              <el-slider v-model="form.temperature" :min="0" :max="2" :step="0.1" show-input />
-            </el-form-item>
-            <el-form-item label="设为默认">
-              <el-switch v-model="form.is_default" />
-            </el-form-item>
-            <el-form-item label="描述">
-              <el-input v-model="form.description" type="textarea" placeholder="模型描述" />
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="handleAdd" :loading="loading">
-                {{ loading ? '添加中...' : '添加模型' }}
-              </el-button>
-            </el-form-item>
-          </el-form>
-        </div>
+    <div class="add-section">
+      <h3>添加新模型</h3>
+      <el-form :model="form" label-width="120px" class="model-form">
+        <el-form-item label="模型名称">
+          <el-input v-model="form.name" placeholder="例如：GPT-4" />
+        </el-form-item>
+        <el-form-item label="模型类型">
+          <el-select v-model="form.is_embedding" placeholder="选择模型类型">
+            <el-option :label="form.is_embedding === 1 ? '嵌入模型' : '聊天模型'" :value="form.is_embedding" />
+            <el-option label="聊天模型" :value="0" />
+            <el-option label="嵌入模型" :value="1" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="提供商">
+          <el-select v-model="form.provider" placeholder="选择提供商">
+            <el-option label="OpenAI" value="openai" />
+            <el-option label="SiliconFlow" value="siliconflow" />
+            <el-option label="Anthropic" value="anthropic" />
+            <el-option label="本地部署" value="local" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="模型标识">
+          <el-input v-model="form.model_name" placeholder="例如：gpt-4 或 qwen3-embedding:0.6b" />
+        </el-form-item>
+        <el-form-item label="API地址">
+          <el-input v-model="form.base_url" placeholder="API Base URL（可选，本地部署如 http://localhost:11434）" />
+        </el-form-item>
+        <el-form-item label="API密钥">
+          <el-input v-model="form.api_key" type="password" placeholder="API Key（可选，本地部署不需要）" show-password />
+        </el-form-item>
+        <el-form-item v-if="form.is_embedding === 0" label="最大Token数">
+          <el-input-number v-model="form.max_tokens" :min="100" :max="100000" />
+        </el-form-item>
+        <el-form-item v-if="form.is_embedding === 0" label="Temperature">
+          <el-slider v-model="form.temperature" :min="0" :max="2" :step="0.1" show-input />
+        </el-form-item>
+        <el-form-item v-if="form.is_embedding === 1" label="嵌入维度">
+          <el-input-number v-model="form.embedding_dim" :min="0" :max="10000" placeholder="0表示自动检测" />
+        </el-form-item>
+        <el-form-item label="设为默认">
+          <el-switch v-model="form.is_default" />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input v-model="form.description" type="textarea" placeholder="模型描述" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleAdd" :loading="loading">
+            {{ loading ? '添加中...' : '添加模型' }}
+          </el-button>
+        </el-form-item>
+      </el-form>
+    </div>
         
         <div class="list-section">
           <h3>模型列表</h3>
@@ -65,14 +75,15 @@
                 <div class="model-info">
                   <h4>{{ model.name }}</h4>
                   <p class="model-id">{{ model.model_name }}</p>
-                  <p class="provider">{{ getProviderName(model.provider) }}</p>
+                  <p class="provider">{{ getProviderName(model.provider) }} · {{ model.is_embedding === 1 ? '嵌入模型' : '聊天模型' }}</p>
                 </div>
                 <div class="model-badges">
                   <span v-if="model.is_default" class="badge default">默认</span>
                   <span v-if="model.is_active" class="badge active">激活</span>
+                  <span v-if="model.is_embedding === 1" class="badge embedding">嵌入</span>
                 </div>
               </div>
-              <div class="model-stats">
+              <div class="model-stats" v-if="model.is_embedding === 0">
                 <div class="stat">
                   <span class="label">Temperature:</span>
                   <span class="value">{{ model.temperature }}</span>
@@ -80,6 +91,12 @@
                 <div class="stat">
                   <span class="label">Max Tokens:</span>
                   <span class="value">{{ model.max_tokens }}</span>
+                </div>
+              </div>
+              <div class="model-stats" v-if="model.is_embedding === 1">
+                <div class="stat">
+                  <span class="label">嵌入维度:</span>
+                  <span class="value">{{ model.embedding_dim || '自动' }}</span>
                 </div>
               </div>
               <p v-if="model.description" class="model-desc">{{ model.description }}</p>
@@ -111,6 +128,12 @@
             <el-form-item label="模型名称">
               <el-input v-model="editForm.name" />
             </el-form-item>
+            <el-form-item label="模型类型">
+              <el-select v-model="editForm.is_embedding">
+                <el-option label="聊天模型" :value="0" />
+                <el-option label="嵌入模型" :value="1" />
+              </el-select>
+            </el-form-item>
             <el-form-item label="提供商">
               <el-select v-model="editForm.provider">
                 <el-option label="OpenAI" value="openai" />
@@ -128,11 +151,14 @@
             <el-form-item label="API密钥">
               <el-input v-model="editForm.api_key" type="password" show-password />
             </el-form-item>
-            <el-form-item label="最大Token数">
+            <el-form-item v-if="editForm.is_embedding === 0" label="最大Token数">
               <el-input-number v-model="editForm.max_tokens" :min="100" :max="100000" />
             </el-form-item>
-            <el-form-item label="Temperature">
+            <el-form-item v-if="editForm.is_embedding === 0" label="Temperature">
               <el-slider v-model="editForm.temperature" :min="0" :max="2" :step="0.1" show-input />
+            </el-form-item>
+            <el-form-item v-if="editForm.is_embedding === 1" label="嵌入维度">
+              <el-input-number v-model="editForm.embedding_dim" :min="0" :max="10000" />
             </el-form-item>
             <el-form-item label="设为默认">
               <el-switch v-model="editForm.is_default" />
@@ -163,12 +189,14 @@ const editingId = ref(null)
 
 const form = reactive({
   name: '',
+  is_embedding: 0,
   provider: 'openai',
   model_name: '',
   base_url: '',
   api_key: '',
   max_tokens: 2048,
   temperature: 0.7,
+  embedding_dim: 0,
   is_default: false,
   description: ''
 })
@@ -228,7 +256,10 @@ const handleSave = async () => {
 
 const handleSetDefault = async (id) => {
   try {
-    const response = await adminAPI.setDefaultModel(id)
+    const model = models.value.find(m => m.id === id)
+    const response = model.is_embedding === 1 
+      ? await adminAPI.setDefaultEmbeddingModel(id)
+      : await adminAPI.setDefaultModel(id)
     if (response.success) {
       ElMessage.success('设置成功')
       await getModels()
@@ -257,6 +288,8 @@ const resetForm = () => {
     if (key === 'max_tokens') form[key] = 2048
     else if (key === 'temperature') form[key] = 0.7
     else if (key === 'is_default') form[key] = false
+    else if (key === 'is_embedding') form[key] = 0
+    else if (key === 'embedding_dim') form[key] = 0
     else form[key] = ''
   })
 }
@@ -441,6 +474,11 @@ onMounted(() => {
 
 .badge.active {
   background: #409eff;
+  color: white;
+}
+
+.badge.embedding {
+  background: #909399;
   color: white;
 }
 

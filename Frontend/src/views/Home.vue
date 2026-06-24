@@ -184,13 +184,33 @@
               <a href="/recognize" class="btn-start">开始识别</a>
             </div>
           </div>
+
+          <div class="breeds-preview-section">
+            <div class="section-header">
+              <h3>🐾 热门品种</h3>
+            </div>
+            <div class="breeds-grid">
+              <div
+                v-for="breed in breeds"
+                :key="breed.name"
+                class="breed-card"
+                @click="goToBreed(breed.name)"
+              >
+                <div class="breed-icon">{{ breed.icon }}</div>
+                <div class="breed-info">
+                  <h4>{{ breed.name }}</h4>
+                  <p>{{ breed.category }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </template>
 
     <footer class="footer">
       <div class="container">
-        <p>&copy; 2024 PetWise. All rights reserved.</p>
+        <p>&copy;  PetWise</p>
       </div>
     </footer>
   </div>
@@ -202,19 +222,13 @@ import Navbar from '@/components/Navbar.vue'
 import { useStore } from '@/store'
 import { petsAPI } from '@/api/pets'
 import { favoritesAPI } from '@/api/favorites'
+import { recognizeAPI } from '@/api/recognize'
 
 const store = useStore()
 const isLoggedIn = computed(() => store.state.isLoggedIn)
 const user = computed(() => store.state.user)
 
-const breeds = ref([
-  { name: '英国短毛猫', category: '猫', icon: '🐱' },
-  { name: '金毛寻回犬', category: '狗', icon: '🐶' },
-  { name: '泰迪犬', category: '狗', icon: '🐩' },
-  { name: '布偶猫', category: '猫', icon: '🐈' },
-  { name: '哈士奇', category: '狗', icon: '🦮' },
-  { name: '暹罗猫', category: '猫', icon: '🐱' }
-])
+const breeds = ref([])
 
 const myPets = ref([])
 const reminders = ref([])
@@ -338,7 +352,33 @@ const goToBreed = (name) => {
   window.location.href = `/breed/${encodeURIComponent(name)}`
 }
 
+const loadPopularBreeds = async () => {
+  try {
+    const res = await recognizeAPI.getPopularBreeds()
+    if (res.success) {
+      const categoryMap = { 'cat': '猫', 'dog': '狗' }
+      const icons = { '猫': '🐱', '狗': '🐶' }
+      breeds.value = res.breeds?.map(b => ({
+        name: b.breed,
+        category: categoryMap[b.category] || b.category || '宠物',
+        icon: icons[categoryMap[b.category]] || icons[b.category] || '🐾'
+      })) || []
+    }
+  } catch (error) {
+    console.log('Failed to load popular breeds:', error)
+    breeds.value = [
+      { name: '英国短毛猫', category: '猫', icon: '🐱' },
+      { name: '金毛', category: '狗', icon: '🐶' },
+      { name: '泰迪犬', category: '狗', icon: '🐩' },
+      { name: '布偶猫', category: '猫', icon: '🐈' },
+      { name: '哈士奇', category: '狗', icon: '🦮' },
+      { name: '暹罗猫', category: '猫', icon: '🐱' }
+    ]
+  }
+}
+
 onMounted(() => {
+  loadPopularBreeds()
   if (isLoggedIn.value) {
     loadUserData()
   }
@@ -770,6 +810,10 @@ onMounted(() => {
 .breed-info p {
   font-size: 12px;
   color: #999;
+}
+
+.breeds-preview-section {
+  margin-top: 30px;
 }
 
 .footer {

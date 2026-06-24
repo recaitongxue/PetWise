@@ -27,7 +27,6 @@
           <router-link to="/admin/rate-limits" class="nav-item" :class="{ active: $route.path === '/admin/rate-limits' }">⚡ 限流配置</router-link>
           <router-link to="/admin/sensitive-words" class="nav-item" :class="{ active: $route.path === '/admin/sensitive-words' }">🛡️ 敏感词</router-link>
           <router-link to="/admin/prompts" class="nav-item" :class="{ active: $route.path === '/admin/prompts' }">💭 Prompt模板</router-link>
-          <router-link to="/admin/corrections" class="nav-item" :class="{ active: $route.path === '/admin/corrections' }">🔄 纠错记录</router-link>
           <router-link to="/admin/feedback" class="nav-item" :class="{ active: $route.path === '/admin/feedback' }">💬 用户反馈</router-link>
           <router-link to="/admin/announcements" class="nav-item" :class="{ active: $route.path === '/admin/announcements' }">📢 公告管理</router-link>
         </nav>

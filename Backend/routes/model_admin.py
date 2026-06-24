@@ -197,11 +197,11 @@ def get_model_accuracy():
         db = get_db()
 
         # 计算Top-1准确率（基于用户纠错）
-        total_corrections = db.execute('SELECT COUNT(*) FROM corrections').fetchone()[0]
+        total_corrections = db.execute('SELECT COUNT(*) FROM hard_examples WHERE is_user_corrected = 1').fetchone()[0]
         if total_corrections > 0:
             correct_predictions = db.execute('''
-                SELECT COUNT(*) FROM corrections
-                WHERE original_breed = corrected_breed
+                SELECT COUNT(*) FROM hard_examples
+                WHERE is_user_corrected = 1 AND predicted_breed = corrected_breed
             ''').fetchone()[0]
             top1_accuracy = (correct_predictions / total_corrections) * 100
         else:

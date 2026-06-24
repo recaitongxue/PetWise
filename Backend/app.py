@@ -117,6 +117,17 @@ def init_app():
     else:
         print("No default model found in database, using AI Agent default configuration")
 
+    default_embedding = db.execute(
+        'SELECT * FROM llm_models WHERE is_embedding = 1 AND is_default = 1 AND is_active = 1 LIMIT 1'
+    ).fetchone()
+    
+    if default_embedding:
+        embedding_config = dict(default_embedding)
+        ai_client.set_default_embedding_config(embedding_config)
+        print(f"Loaded default embedding model: {embedding_config['name']} ({embedding_config['model_name']})")
+    else:
+        print("No default embedding model found in database, using AI Agent default configuration")
+
 init_app()
 
 if __name__ == '__main__':

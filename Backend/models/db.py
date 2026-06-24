@@ -178,6 +178,7 @@ def init_db():
         );
 
         CREATE INDEX IF NOT EXISTS idx_llm_models_active ON llm_models(is_active);
+
         CREATE INDEX IF NOT EXISTS idx_knowledge_category ON knowledge_base(category);
         CREATE INDEX IF NOT EXISTS idx_knowledge_active ON knowledge_base(is_active);
 
@@ -389,6 +390,19 @@ def init_db():
         db.commit()
     except sqlite3.OperationalError:
         pass  # 字段已存在
+
+    # 添加嵌入模型相关字段
+    try:
+        cursor.execute('ALTER TABLE llm_models ADD COLUMN is_embedding INTEGER DEFAULT 0')
+        db.commit()
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        cursor.execute('ALTER TABLE llm_models ADD COLUMN embedding_dim INTEGER DEFAULT 0')
+        db.commit()
+    except sqlite3.OperationalError:
+        pass
 
     if cursor.execute('SELECT COUNT(*) FROM breed_info').fetchone()[0] == 0:
         init_breed_info(cursor)
