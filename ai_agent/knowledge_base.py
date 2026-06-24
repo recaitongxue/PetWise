@@ -1,7 +1,7 @@
 """
 Knowledge Base Management Module
 Handles knowledge base import, storage, and retrieval using SQLite
-Enhanced with TF-IDF search algorithm
+Enhanced with vector embedding search algorithm
 """
 import json
 import os
@@ -16,6 +16,22 @@ from utils import (
 )
 from exceptions import KnowledgeBaseException
 
+try:
+    from file_parser import FileParser
+    FILE_PARSER_AVAILABLE = True
+except ImportError:
+    FILE_PARSER_AVAILABLE = False
+    logger = setup_logging(Config.LOG_LEVEL)
+    logger.warning("File parser module not available, file import will be limited")
+
+try:
+    from embedding_client import EmbeddingClient
+    EMBEDDING_AVAILABLE = True
+except ImportError:
+    EMBEDDING_AVAILABLE = False
+    logger = setup_logging(Config.LOG_LEVEL)
+    logger.warning("Embedding module not available. Using TF-IDF fallback.")
+
 logger = setup_logging(Config.LOG_LEVEL)
 
 try:
@@ -29,7 +45,7 @@ except ImportError:
     logger.warning("TF-IDF dependencies not installed. Using basic search.")
 
 class KnowledgeBase:
-    """Knowledge Base Manager using SQLite with TF-IDF search"""
+    """Knowledge Base Manager using SQLite with vector embedding search"""
     
     def __init__(self, db_path: Optional[str] = None):
         """
@@ -45,6 +61,17 @@ class KnowledgeBase:
         self._tfidf_vectorizer = None
         self._tfidf_matrix = None
         self._document_ids = []
+        self._embedding_client = None
+        self._embedding_dim = 0
+        
+        if EMBEDDING_AVAILABLE:
+            self.configure_embedding(
+                api_key=None,
+                base_url="http://localhost:11434",
+                model="qwen3-embedding:0.6b",
+                embedding_dim=0
+            )
+        
         logger.info(f"Knowledge Base initialized with SQLite: {self.db_path}")
     
     def _init_database(self):
@@ -60,6 +87,7 @@ class KnowledgeBase:
                     data TEXT NOT NULL,
                     keywords TEXT,
                     full_text TEXT,
+                    embedding TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
@@ -82,8 +110,110 @@ class KnowledgeBase:
                 CREATE INDEX IF NOT EXISTS idx_knowledge_keywords ON knowledge(keywords)
             ''')
             
+            try:
+                conn.execute('ALTER TABLE knowledge ADD COLUMN embedding TEXT')
+            except sqlite3.OperationalError:
+                pass
+            
             conn.commit()
     
+    def configure_embedding(self, api_key: Optional[str] = None, 
+                           base_url: Optional[str] = None,
+                           model: Optional[str] = None,
+                           embedding_dim: int = 0):
+        """
+        Configure the embedding client for vector search
+        
+        Args:
+            api_key: API key for embedding service
+            base_url: Base URL for embedding service
+            model: Embedding model name
+            embedding_dim: Expected embedding dimension
+        """
+        if not EMBEDDING_AVAILABLE:
+            logger.warning("Embedding module not available, cannot configure")
+            return
+        
+        if self._embedding_client:
+            self._embedding_client.configure(api_key, base_url, model, embedding_dim)
+        else:
+            self._embedding_client = EmbeddingClient(api_key, base_url, model, embedding_dim)
+        
+        if embedding_dim > 0:
+            self._embedding_dim = embedding_dim
+        
+        logger.info(f"Embedding configured: model={model}, base_url={base_url}")
+    
+    def _create_embedding(self, text: str) -> Optional[List[float]]:
+        """
+        Create embedding vector for text
+        
+        Args:
+            text: Text to embed
+            
+        Returns:
+            Embedding vector or None if failed
+        """
+        if not EMBEDDING_AVAILABLE or not self._embedding_client:
+            return None
+        
+        try:
+            embedding = self._embedding_client.get_embedding(text)
+            return embedding
+        except Exception as e:
+            logger.error(f"Failed to create embedding: {e}")
+            return None
+    
+    def _calculate_vector_similarity(self, vec1: List[float], vec2: List[float]) -> float:
+        """
+        Calculate cosine similarity between two vectors
+        
+        Args:
+            vec1: First vector
+            vec2: Second vector
+            
+        Returns:
+            Similarity score (0-1)
+        """
+        if not vec1 or not vec2 or len(vec1) != len(vec2):
+            return 0.0
+        
+        try:
+            import numpy as np
+            from sklearn.metrics.pairwise import cosine_similarity
+            
+            arr1 = np.array(vec1).reshape(1, -1)
+            arr2 = np.array(vec2).reshape(1, -1)
+            return float(cosine_similarity(arr1, arr2)[0][0])
+        except ImportError:
+            return self._simple_cosine_similarity(vec1, vec2)
+        except Exception as e:
+            logger.error(f"Failed to calculate similarity: {e}")
+            return 0.0
+    
+    def _simple_cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
+        """
+        Simple cosine similarity calculation (fallback)
+        
+        Args:
+            vec1: First vector
+            vec2: Second vector
+            
+        Returns:
+            Similarity score (0-1)
+        """
+        if not vec1 or not vec2:
+            return 0.0
+            
+        dot_product = sum(a * b for a, b in zip(vec1, vec2))
+        magnitude1 = (sum(a * a for a in vec1)) ** 0.5
+        magnitude2 = (sum(b * b for b in vec2)) ** 0.5
+        
+        if magnitude1 == 0 or magnitude2 == 0:
+            return 0.0
+            
+        return dot_product / (magnitude1 * magnitude2)
+
     def _migrate_from_json(self):
         """Migrate data from JSON file to SQLite if DB is empty with transaction support"""
         json_path = Config.KNOWLEDGE_BASE_FILE
@@ -349,14 +479,17 @@ class KnowledgeBase:
             keywords = self._extract_keywords(knowledge_data)
             full_text = self._generate_full_text(knowledge_data)
             
+            embedding = self._create_embedding(full_text)
+            embedding_json = json.dumps(embedding) if embedding else None
+            
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 
                 cursor.execute('INSERT OR IGNORE INTO categories (name, description, created_at) VALUES (?, ?, ?)',
                     (category, "", format_timestamp()))
                 
-                cursor.execute('INSERT INTO knowledge (id, category, title, data, keywords, full_text, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                    (knowledge_id, category, title, data_json, keywords, full_text, format_timestamp(), format_timestamp()))
+                cursor.execute('INSERT INTO knowledge (id, category, title, data, keywords, full_text, embedding, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    (knowledge_id, category, title, data_json, keywords, full_text, embedding_json, format_timestamp(), format_timestamp()))
                 
                 conn.commit()
             
@@ -376,10 +509,10 @@ class KnowledgeBase:
     def import_from_file(self, file_path: str, 
                         category: str = "general") -> Dict[str, Any]:
         """
-        Import knowledge from JSON file
+        Import knowledge from various file formats (MD, DOCX, PDF, TXT, JSON)
         
         Args:
-            file_path: Path to JSON file containing knowledge data
+            file_path: Path to the file containing knowledge data
             category: Category of the knowledge
             
         Returns:
@@ -389,10 +522,85 @@ class KnowledgeBase:
             if not os.path.exists(file_path):
                 raise FileNotFoundError(f"File not found: {file_path}")
             
-            with open(file_path, 'r', encoding='utf-8') as f:
-                knowledge_data = json.load(f)
+            _, ext = os.path.splitext(file_path)
+            ext = ext.lower()
             
-            return self.import_knowledge(knowledge_data, category)
+            if ext == '.json':
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    knowledge_data = json.load(f)
+                return self.import_knowledge(knowledge_data, category)
+            
+            if not FILE_PARSER_AVAILABLE:
+                raise ImportError("File parser module not available")
+            
+            parser = FileParser()
+            parsed_result = parser.parse_file(file_path)
+            
+            imported_count = 0
+            skipped_count = 0
+            
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                conn.execute("BEGIN TRANSACTION")
+                
+                try:
+                    cursor.execute('INSERT OR IGNORE INTO categories (name, description, created_at) VALUES (?, ?, ?)',
+                        (category, "", format_timestamp()))
+                    
+                    for entry in parsed_result.get("entries", []):
+                        try:
+                            knowledge_id = f"kb_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
+                            entry_title = entry.get("title", parsed_result.get("title", "Untitled"))
+                            entry_category = entry.get("category", category)
+                            entry_content = entry.get("content", "")
+                            entry_keywords = entry.get("keywords", "")
+                            
+                            if not entry_content:
+                                skipped_count += 1
+                                continue
+                            
+                            knowledge_data = {
+                                "title": entry_title,
+                                "content": entry_content,
+                                "category": entry_category,
+                                "keywords": entry_keywords
+                            }
+                            
+                            data_json = json.dumps(knowledge_data, ensure_ascii=False)
+                            keywords = self._extract_keywords(knowledge_data)
+                            full_text = self._generate_full_text(knowledge_data)
+                            
+                            embedding = self._create_embedding(full_text)
+                            embedding_json = json.dumps(embedding) if embedding else None
+                            
+                            cursor.execute('INSERT INTO knowledge (id, category, title, data, keywords, full_text, embedding, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                                (knowledge_id, entry_category, entry_title, data_json, keywords, full_text, embedding_json, format_timestamp(), format_timestamp()))
+                            
+                            imported_count += 1
+                            
+                        except Exception as e:
+                            logger.warning(f"Skipping entry due to error: {e}")
+                            skipped_count += 1
+                            continue
+                    
+                    conn.commit()
+                    
+                    self._ensure_tfidf_index()
+                    
+                    logger.info(f"File import completed: {imported_count} imported, {skipped_count} skipped")
+                    return {
+                        "success": True,
+                        "imported": imported_count,
+                        "skipped": skipped_count,
+                        "file_name": parsed_result.get("file_name"),
+                        "file_format": parsed_result.get("format"),
+                        "message": f"Successfully imported {imported_count} entries from file"
+                    }
+                
+                except Exception as e:
+                    conn.rollback()
+                    logger.error(f"File import failed, rolled back: {e}")
+                    raise KnowledgeBaseException(f"File import failed: {e}")
             
         except json.JSONDecodeError as e:
             raise KnowledgeBaseException(f"Invalid JSON file: {e}")
@@ -408,15 +616,79 @@ class KnowledgeBase:
             query: Search query string
             category: Filter by category (optional)
             limit: Maximum number of results
-            use_tfidf: Use TF-IDF search (default True)
+            use_tfidf: Use TF-IDF search (default True, fallback when vector unavailable)
             
         Returns:
             List of matching knowledge entries sorted by relevance
         """
-        if TF_IDF_AVAILABLE and use_tfidf:
+        if EMBEDDING_AVAILABLE and self._embedding_client:
+            return self._query_vector(query, category, limit)
+        elif TF_IDF_AVAILABLE and use_tfidf:
             return self._query_tfidf(query, category, limit)
         else:
             return self._query_basic(query, category, limit)
+    
+    def _query_vector(self, query: str, category: Optional[str] = None,
+                     limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        Query knowledge base using vector embedding similarity
+        
+        Args:
+            query: Search query string
+            category: Filter by category (optional)
+            limit: Maximum number of results
+            
+        Returns:
+            List of matching knowledge entries sorted by relevance
+        """
+        try:
+            query_embedding = self._create_embedding(query)
+            if not query_embedding:
+                logger.warning("Failed to create query embedding, falling back to TF-IDF")
+                return self._query_tfidf(query, category, limit)
+            
+            results = []
+            
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                
+                if category:
+                    cursor.execute('SELECT * FROM knowledge WHERE category = ? AND embedding IS NOT NULL',
+                        (category,))
+                else:
+                    cursor.execute('SELECT * FROM knowledge WHERE embedding IS NOT NULL')
+                
+                for row in cursor.fetchall():
+                    try:
+                        embedding = json.loads(row['embedding'])
+                        if not embedding:
+                            continue
+                        
+                        similarity = self._calculate_vector_similarity(query_embedding, embedding)
+                        
+                        if similarity < 0.01:
+                            continue
+                        
+                        data = json.loads(row['data'])
+                        results.append({
+                            "id": row['id'],
+                            "category": row['category'],
+                            "title": row['title'],
+                            "data": data,
+                            "relevance": round(similarity * 100, 2),
+                            "created_at": row['created_at']
+                        })
+                    except Exception as e:
+                        logger.warning(f"Failed to process knowledge entry: {e}")
+                        continue
+            
+            results.sort(key=lambda x: x["relevance"], reverse=True)
+            return results[:limit]
+            
+        except Exception as e:
+            logger.error(f"Vector query failed: {e}")
+            return self._query_tfidf(query, category, limit)
     
     def _query_tfidf(self, query: str, category: Optional[str] = None, 
                     limit: int = 5) -> List[Dict[str, Any]]:
@@ -592,6 +864,73 @@ class KnowledgeBase:
         except Exception as e:
             logger.error(f"Failed to get categories: {e}")
             return []
+
+    def get_all_knowledge(self, category: Optional[str] = None,
+                          page: int = 1, per_page: int = 20) -> Dict[str, Any]:
+        """
+        Get all knowledge entries with pagination
+        
+        Args:
+            category: Filter by category
+            page: Page number
+            per_page: Items per page
+            
+        Returns:
+            Dictionary with data and pagination info
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                
+                query = 'SELECT * FROM knowledge'
+                params = []
+                
+                if category:
+                    query += ' WHERE category = ?'
+                    params.append(category)
+                
+                # Get total count
+                count_query = query.replace('SELECT *', 'SELECT COUNT(*)')
+                total = cursor.execute(count_query, params).fetchone()[0]
+                
+                # Get paginated results
+                query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?'
+                params.extend([per_page, (page - 1) * per_page])
+                
+                rows = cursor.execute(query, params).fetchall()
+                
+                data = []
+                for row in rows:
+                    entry = {
+                        "id": row['id'],
+                        "category": row['category'],
+                        "title": row['title'],
+                        "created_at": row['created_at'],
+                        "updated_at": row['updated_at']
+                    }
+                    try:
+                        entry["data"] = json.loads(row['data'])
+                        entry["content"] = entry["data"].get("content", "")
+                    except:
+                        entry["data"] = {}
+                        entry["content"] = ""
+                    data.append(entry)
+                
+                return {
+                    "success": True,
+                    "data": data,
+                    "pagination": {
+                        "page": page,
+                        "per_page": per_page,
+                        "total": total,
+                        "pages": (total + per_page - 1) // per_page
+                    }
+                }
+                
+        except Exception as e:
+            logger.error(f"Failed to get all knowledge: {e}")
+            return {"success": False, "error": str(e), "data": [], "pagination": {"page": page, "per_page": per_page, "total": 0, "pages": 0}}
     
     def update_knowledge(self, knowledge_id: str, 
                         new_data: Dict[str, Any]) -> Dict[str, Any]:

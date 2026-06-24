@@ -190,7 +190,7 @@
 
     <footer class="footer">
       <div class="container">
-        <p>&copy; 2024 PetWise. All rights reserved.</p>
+        <p>&copy;  PetWise</p>
       </div>
     </footer>
   </div>

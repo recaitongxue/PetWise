@@ -499,6 +499,28 @@ async def get_knowledge_stats():
         logger.error(f"Knowledge stats error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@v1_router.get("/knowledge/list", tags=["Knowledge Base"])
+async def get_knowledge_list(
+    category: Optional[str] = None,
+    page: int = 1,
+    per_page: int = 20
+):
+    if not ai_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        result = ai_service.knowledge_base.get_all_knowledge(
+            category=category,
+            page=page,
+            per_page=per_page
+        )
+        result["timestamp"] = format_timestamp()
+        return result
+        
+    except Exception as e:
+        logger.error(f"Get knowledge list error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @v1_router.get("/knowledge/{knowledge_id}", tags=["Knowledge Base"])
 async def get_knowledge_by_id(knowledge_id: str):
     if not ai_service:
@@ -584,7 +606,136 @@ async def get_knowledge_categories():
         logger.error(f"Get categories error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@v1_router.get("/prompts/system", tags=["Prompts"])
+@v1_router.post("/knowledge/upload", tags=["Knowledge Base"])
+async def upload_knowledge_file(
+    file: UploadFile = File(...),
+    category: str = "general"
+):
+    if not ai_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        import tempfile
+        import os
+        
+        _, ext = os.path.splitext(file.filename)
+        ext = ext.lower()
+        
+        allowed_extensions = ['.md', '.docx', '.doc', '.pdf', '.txt', '.json']
+        if ext not in allowed_extensions:
+            raise HTTPException(status_code=400, detail=f"Unsupported file format: {ext}. Supported formats: {', '.join(allowed_extensions)}")
+        
+        with tempfile.NamedTemporaryFile(mode='wb', suffix=ext, delete=False) as f:
+            contents = await file.read()
+            f.write(contents)
+            temp_path = f.name
+        
+        try:
+            result = ai_service.knowledge_base.import_from_file(temp_path, category)
+            
+            if not result.get("success"):
+                raise HTTPException(status_code=500, detail=result.get("message", "File import failed"))
+            
+            return {
+                "success": True,
+                "file_name": file.filename,
+                "file_format": ext[1:],
+                "category": category,
+                "imported": result.get("imported", 0),
+                "skipped": result.get("skipped", 0),
+                "message": result.get("message", "File uploaded successfully"),
+                "timestamp": format_timestamp()
+            }
+        finally:
+            os.unlink(temp_path)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"File upload error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@v1_router.get("/knowledge/supported-formats", tags=["Knowledge Base"])
+async def get_supported_formats():
+    try:
+        from file_parser import FileParser
+        formats = FileParser.get_supported_formats()
+    except ImportError:
+        formats = ['.md', '.txt', '.json']
+    
+    return {
+        "success": True,
+        "formats": formats,
+        "description": {
+            ".md": "Markdown文件",
+            ".docx": "Word文档(DOCX)",
+            ".doc": "Word文档(DOC)",
+            ".pdf": "PDF文档",
+            ".txt": "纯文本文件",
+            ".json": "JSON数据文件"
+        },
+        "timestamp": format_timestamp()
+    }
+
+class EmbeddingConfigRequest(BaseModel):
+    api_key: Optional[str] = Field(None, description="API key for embedding service")
+    base_url: Optional[str] = Field(None, description="Base URL for embedding service")
+    model_name: Optional[str] = Field(None, description="Embedding model name")
+    embedding_dim: int = Field(0, description="Expected embedding dimension")
+
+@v1_router.post("/embedding/config", tags=["Embedding"])
+async def configure_embedding(request: EmbeddingConfigRequest):
+    if not ai_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        ai_service.knowledge_base.configure_embedding(
+            api_key=request.api_key,
+            base_url=request.base_url,
+            model=request.model_name,
+            embedding_dim=request.embedding_dim
+        )
+        
+        return {
+            "success": True,
+            "message": "Embedding configuration updated",
+            "config": {
+                "model_name": request.model_name,
+                "base_url": request.base_url,
+                "embedding_dim": request.embedding_dim
+            },
+            "timestamp": format_timestamp()
+        }
+        
+    except Exception as e:
+        logger.error(f"Configure embedding error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@v1_router.get("/embedding/config", tags=["Embedding"])
+async def get_embedding_config():
+    if not ai_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        kb = ai_service.knowledge_base
+        config = {
+            "embedding_available": kb._embedding_client is not None,
+            "model_name": kb._embedding_client.model if kb._embedding_client else None,
+            "base_url": kb._embedding_client.base_url if kb._embedding_client else None,
+            "embedding_dim": kb._embedding_dim
+        }
+        
+        return {
+            "success": True,
+            "config": config,
+            "timestamp": format_timestamp()
+        }
+        
+    except Exception as e:
+        logger.error(f"Get embedding config error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@v1_router.post("/prompts/system", tags=["Prompts"])
 async def get_system_prompt():
     if not ai_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
