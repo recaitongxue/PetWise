@@ -194,13 +194,6 @@ router.addRoute('admin', {
 })
 
 router.addRoute('admin', {
-  path: '/admin/corrections',
-  name: 'AdminCorrections',
-  component: () => import('../views/admin/Corrections.vue'),
-  meta: { requiresAuth: true, requiresAdmin: true }
-})
-
-router.addRoute('admin', {
   path: '/admin/logs',
   name: 'AdminLogs',
   component: () => import('../views/admin/Logs.vue'),

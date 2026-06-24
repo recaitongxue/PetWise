@@ -39,7 +39,7 @@
           <div class="stat-icon bg-red">🔄</div>
           <div class="stat-info">
             <span class="stat-value">{{ stats.pending_corrections || 0 }}</span>
-            <span class="stat-label">待审核纠错</span>
+            <span class="stat-label">待审核难样本</span>
           </div>
         </div>
         <div class="stat-card">
@@ -66,8 +66,8 @@
           <router-link to="/admin/stats" class="action-btn">
             <span>📈 查看统计</span>
           </router-link>
-          <router-link to="/admin/corrections" class="action-btn">
-            <span>🔄 审核纠错</span>
+          <router-link to="/admin/samples" class="action-btn">
+            <span>🔄 审核难样本</span>
           </router-link>
           <router-link to="/admin/logs" class="action-btn">
             <span>📋 系统日志</span>

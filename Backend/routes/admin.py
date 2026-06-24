@@ -270,7 +270,7 @@ def get_stats():
             "total_comments": db.execute('SELECT COUNT(*) FROM comments').fetchone()[0],
             "total_chats": db.execute('SELECT COUNT(*) FROM chat_history WHERE role = ?', ('user',)).fetchone()[0],
             "pending_feedback": db.execute('SELECT COUNT(*) FROM feedback WHERE status = ?', ('pending',)).fetchone()[0],
-            "pending_corrections": db.execute('SELECT COUNT(*) FROM corrections WHERE status = ?', ('pending',)).fetchone()[0],
+            "pending_corrections": db.execute('SELECT COUNT(*) FROM hard_examples WHERE status = ?', ('pending',)).fetchone()[0],
             "active_announcements": db.execute('SELECT COUNT(*) FROM announcements WHERE is_active = ?', (1,)).fetchone()[0]
         }
 
@@ -1427,97 +1427,6 @@ def delete_announcement(announcement_id):
         log_action(db, admin_id, 'admin_delete_announcement', {'announcement_id': announcement_id})
         
         return jsonify({"success": True, "message": "Announcement deleted"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# ==================== 纠错管理 ====================
-
-@admin_bp.route('/admin/corrections', methods=['GET'])
-@admin_required
-def get_corrections():
-    """获取纠错记录列表"""
-    try:
-        status = request.args.get('status')
-        page = int(request.args.get('page', 1))
-        per_page = int(request.args.get('per_page', 20))
-        offset = (page - 1) * per_page
-        
-        db = get_db()
-        
-        query = '''
-            SELECT c.*, u.username, r.image_path
-            FROM corrections c
-            LEFT JOIN users u ON c.user_id = u.id
-            LEFT JOIN recognitions r ON c.recognition_id = r.id
-        '''
-        params = []
-        
-        if status:
-            query += ' WHERE c.status = ?'
-            params.append(status)
-        
-        query += ' ORDER BY c.created_at DESC LIMIT ? OFFSET ?'
-        params.extend([per_page, offset])
-        
-        corrections = db.execute(query, params).fetchall()
-        
-        total_query = 'SELECT COUNT(*) FROM corrections'
-        total_params = []
-        if status:
-            total_query += ' WHERE status = ?'
-            total_params.append(status)
-        
-        total = db.execute(total_query, total_params).fetchone()[0]
-        
-        return jsonify({
-            "success": True,
-            "data": [dict(c) for c in corrections],
-            "pagination": {
-                "page": page,
-                "per_page": per_page,
-                "total": total,
-                "pages": (total + per_page - 1) // per_page
-            }
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@admin_bp.route('/admin/corrections/<int:correction_id>', methods=['PUT'])
-@admin_required
-def update_correction(correction_id):
-    """审核纠错记录"""
-    try:
-        admin_id = get_current_user_id()
-        data = request.get_json()
-        db = get_db()
-        
-        status = data.get('status')
-        if not status:
-            return jsonify({"error": "Status is required"}), 400
-        
-        db.execute('''
-            UPDATE corrections 
-            SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        ''', (status, admin_id, correction_id))
-        db.commit()
-        
-        # 如果批准纠错，添加到难样本库
-        if status == 'approved':
-            correction = db.execute('SELECT * FROM corrections WHERE id = ?', (correction_id,)).fetchone()
-            if correction:
-                recognition = db.execute('SELECT * FROM recognitions WHERE id = ?', (correction['recognition_id'],)).fetchone()
-                if recognition:
-                    db.execute('''
-                        INSERT INTO hard_examples (recognition_id, user_id, image_path, predicted_breed, confidence, is_user_corrected, corrected_breed, status)
-                        VALUES (?, ?, ?, ?, ?, 1, ?, 'approved')
-                    ''', (recognition['id'], correction['user_id'], recognition['image_path'],
-                          correction['original_breed'], correction['confidence'], correction['corrected_breed']))
-                    db.commit()
-        
-        log_action(db, admin_id, 'admin_update_correction', {'correction_id': correction_id, 'status': status})
-        
-        return jsonify({"success": True, "message": "Correction updated"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

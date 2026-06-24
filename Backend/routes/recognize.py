@@ -573,11 +573,6 @@ def correct_recognition():
             return jsonify({"error": "Recognition not found"}), 404
 
         db.execute('''
-            INSERT INTO corrections (recognition_id, user_id, original_breed, corrected_breed, confidence, reason, status)
-            VALUES (?, ?, ?, ?, ?, ?, 'pending')
-        ''', (recognition_id, user_id, recognition['breed'], corrected_breed, recognition['confidence'], reason))
-
-        db.execute('''
             INSERT INTO hard_examples (recognition_id, user_id, image_path, predicted_breed, confidence, is_user_corrected, corrected_breed, collected_reason, status)
             VALUES (?, ?, ?, ?, ?, 1, ?, ?, 'pending')
         ''', (recognition_id, user_id, recognition['image_path'], recognition['breed'], recognition['confidence'], corrected_breed, 'user_correction'))
@@ -602,59 +597,4 @@ def correct_recognition():
         print(f"Correction error: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
-@recognize_bp.route('/recognize/corrections', methods=['GET'])
-@login_required
-def get_corrections():
-    try:
-        user_id = get_current_user_id()
-        page = int(request.args.get('page', 1))
-        per_page = int(request.args.get('per_page', 10))
-        status = request.args.get('status', 'all')
-        offset = (page - 1) * per_page
-
-        db = get_db()
-
-        query = '''
-            SELECT c.*, r.image_path, r.confidence as original_confidence
-            FROM corrections c
-            LEFT JOIN recognitions r ON c.recognition_id = r.id
-            WHERE c.user_id = ?
-        '''
-        params = [user_id]
-
-        if status != 'all':
-            query += ' AND c.status = ?'
-            params.append(status)
-
-        query += ' ORDER BY c.created_at DESC LIMIT ? OFFSET ?'
-        params.extend([per_page, offset])
-
-        corrections = db.execute(query, params).fetchall()
-
-        total_query = '''
-            SELECT COUNT(*)
-            FROM corrections
-            WHERE user_id = ?
-        '''
-        total_params = [user_id]
-
-        if status != 'all':
-            total_query += ' AND status = ?'
-            total_params.append(status)
-
-        total = db.execute(total_query, total_params).fetchone()[0]
-
-        return jsonify({
-            "success": True,
-            "data": [dict(c) for c in corrections],
-            "pagination": {
-                "page": page,
-                "per_page": per_page,
-                "total": total,
-                "pages": (total + per_page - 1) // per_page
-            }
-        })
-    except Exception as e:
         return jsonify({"error": str(e)}), 500

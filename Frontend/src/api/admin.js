@@ -126,14 +126,6 @@ export const adminAPI = {
     return axios.get('/admin/samples/hard/stats')
   },
 
-  // ==================== 纠错管理 ====================
-  getCorrections(params) {
-    return axios.get('/admin/corrections', { params })
-  },
-  updateCorrection(id, data) {
-    return axios.put(`/admin/corrections/${id}`, data)
-  },
-
   // ==================== 模型版本管理 ====================
   getModelVersions() {
     return axios.get('/admin/models')

@@ -4,7 +4,7 @@
       <div class="page-header">
         <div class="header-title">
           <h1>🔍 难样本管理</h1>
-          <p class="subtitle">查看和分析识别困难的样本数据</p>
+          <p class="subtitle">查看和分析识别困难的样本数据及用户纠错记录</p>
         </div>
       </div>
         
@@ -42,7 +42,7 @@
         <div class="filter-section">
           <div class="filter-bar">
             <el-select v-model="statusFilter" placeholder="筛选状态" @change="handleFilter">
-              <el-option label="全部" value="" />
+              <el-option label="全部" value="all" />
               <el-option label="待审核" value="pending" />
               <el-option label="已通过" value="approved" />
               <el-option label="已拒绝" value="rejected" />
@@ -91,6 +91,18 @@
                   <span class="label">收集原因：</span>
                   <span class="value">{{ sample.collected_reason }}</span>
                 </div>
+                <div v-if="sample.reason" class="detail-row">
+                  <span class="label">纠错原因：</span>
+                  <span class="value">{{ sample.reason }}</span>
+                </div>
+                <div v-if="sample.recognition_id" class="detail-row">
+                  <span class="label">识别ID：</span>
+                  <span class="value">{{ sample.recognition_id }}</span>
+                </div>
+                <div v-if="sample.user_id" class="detail-row">
+                  <span class="label">用户ID：</span>
+                  <span class="value">{{ sample.user_id }}</span>
+                </div>
                 <div v-if="sample.notes" class="detail-row">
                   <span class="label">备注：</span>
                   <span class="value">{{ sample.notes }}</span>
@@ -128,7 +140,7 @@
           />
         </div>
         
-        <div v-else class="empty-state">暂无难样本</div>
+        <div v-else class="empty-state">暂无数据</div>
         
         <el-dialog title="重新标注" v-model="relabelDialogVisible" width="500px">
           <el-form :model="relabelForm" label-width="100px">
@@ -167,7 +179,7 @@ import { recognizeAPI } from '@/api/recognize'
 
 const samples = ref([])
 const stats = ref({})
-const statusFilter = ref('pending')
+const statusFilter = ref('all')
 const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
@@ -242,6 +254,12 @@ const handleFilter = () => {
   getSamples()
 }
 
+const handleTabChange = (type) => {
+  typeFilter.value = type
+  currentPage.value = 1
+  getSamples()
+}
+
 const handlePageChange = (page) => {
   currentPage.value = page
   getSamples()
@@ -297,7 +315,6 @@ const handleExport = async () => {
     const response = await adminAPI.exportHardExamples({ status: 'approved' })
     if (response) {
       ElMessage.success('导出成功')
-      // 创建下载链接
       const url = window.URL.createObjectURL(new Blob([response]))
       const link = document.createElement('a')
       link.href = url
@@ -317,7 +334,6 @@ const getImageUrl = (path) => {
   if (!path) return ''
   if (path.startsWith('http')) return path
   
-  // 如果是完整路径（如 E:/PetWise/backend/uploads/xxx.jpg），提取文件名
   if (path.includes(':') || path.includes('\\') || path.includes('/uploads/')) {
     const filename = path.split('/').pop().split('\\').pop()
     return `/uploads/${filename}`
@@ -447,6 +463,39 @@ onMounted(() => {
 .filter-bar {
   display: flex;
   gap: 15px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-tabs {
+  display: flex;
+  gap: 5px;
+  background: #f5f7fa;
+  padding: 4px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.filter-tab {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.filter-tab:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.filter-tab.active {
+  background: white;
+  color: #667eea;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .sample-list {

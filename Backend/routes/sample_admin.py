@@ -18,7 +18,8 @@ sample_admin_bp = Blueprint('sample_admin', __name__)
 def get_hard_examples():
     """获取难样本列表"""
     try:
-        status = request.args.get('status', 'pending')
+        status = request.args.get('status', '')
+        sample_type = request.args.get('type', '')
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('per_page', 20))
         offset = (page - 1) * per_page
@@ -34,9 +35,14 @@ def get_hard_examples():
         '''
         params = []
 
-        if status != 'all':
+        if status and status != 'all':
             query += ' AND he.status = ?'
             params.append(status)
+
+        if sample_type == 'hard':
+            query += ' AND he.is_low_confidence = 1'
+        elif sample_type == 'correction':
+            query += ' AND he.is_user_corrected = 1'
 
         query += ' ORDER BY he.created_at DESC LIMIT ? OFFSET ?'
         params.extend([per_page, offset])
@@ -46,9 +52,14 @@ def get_hard_examples():
         total_query = 'SELECT COUNT(*) FROM hard_examples WHERE 1=1'
         total_params = []
 
-        if status != 'all':
+        if status and status != 'all':
             total_query += ' AND status = ?'
             total_params.append(status)
+
+        if sample_type == 'hard':
+            total_query += ' AND is_low_confidence = 1'
+        elif sample_type == 'correction':
+            total_query += ' AND is_user_corrected = 1'
 
         total = db.execute(total_query, total_params).fetchone()[0]
 

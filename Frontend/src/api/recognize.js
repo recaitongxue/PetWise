@@ -84,6 +84,11 @@ export const recognizeAPI = {
   // 模型状态检查
   getModelStatus() {
     return axios.get('/model/status')
+  },
+
+  // 获取热门品种
+  getPopularBreeds() {
+    return axios.get(`${RECOGNIZE_BASE}/breeds/popular`)
   }
 }
 
