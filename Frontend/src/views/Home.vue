@@ -352,7 +352,33 @@ const goToBreed = (name) => {
   window.location.href = `/breed/${encodeURIComponent(name)}`
 }
 
+const loadPopularBreeds = async () => {
+  try {
+    const res = await recognizeAPI.getPopularBreeds()
+    if (res.success) {
+      const categoryMap = { 'cat': '猫', 'dog': '狗' }
+      const icons = { '猫': '🐱', '狗': '🐶' }
+      breeds.value = res.breeds?.map(b => ({
+        name: b.breed,
+        category: categoryMap[b.category] || b.category || '宠物',
+        icon: icons[categoryMap[b.category]] || icons[b.category] || '🐾'
+      })) || []
+    }
+  } catch (error) {
+    console.log('Failed to load popular breeds:', error)
+    breeds.value = [
+      { name: '英国短毛猫', category: '猫', icon: '🐱' },
+      { name: '金毛', category: '狗', icon: '🐶' },
+      { name: '泰迪犬', category: '狗', icon: '🐩' },
+      { name: '布偶猫', category: '猫', icon: '🐈' },
+      { name: '哈士奇', category: '狗', icon: '🦮' },
+      { name: '暹罗猫', category: '猫', icon: '🐱' }
+    ]
+  }
+}
+
 onMounted(() => {
+  loadPopularBreeds()
   if (isLoggedIn.value) {
     loadUserData()
   }
