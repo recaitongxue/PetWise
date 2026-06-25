@@ -1,5 +1,6 @@
 # 忽略数据集目录（大数据文件）
 Frontend/node_modules
+Frontend/dist
 model/data/**
 model/data/**
 # 但必须保留 .gitkeep，让文件夹显示在 GitHub

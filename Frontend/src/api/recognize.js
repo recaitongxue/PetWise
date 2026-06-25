@@ -88,7 +88,7 @@ export const recognizeAPI = {
 
   // 获取热门品种
   getPopularBreeds() {
-    return axios.get(`${RECOGNIZE_BASE}/breeds/popular`)
+    return axios.get('/breeds/popular')
   }
 }
 

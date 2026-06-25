@@ -1,1 +1,0 @@
-import{q as t}from"./index-Bu0UmLiz.js";const o={getFavorites(){return t.get("/favorites")},addFavorite(e){return t.post("/favorites",e)},deleteFavorite(e){return t.delete(`/favorites/${e}`)}};export{o as f};
